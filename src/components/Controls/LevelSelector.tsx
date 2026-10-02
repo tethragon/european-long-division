@@ -19,7 +19,6 @@ interface LevelSelectorProps {
 interface LevelOption {
   id: DifficultyLevel;
   label: string;
-  badge: string;
   example: string;
 }
 
@@ -27,31 +26,26 @@ const LEVELS: LevelOption[] = [
   {
     id: 'easy',
     label: 'Ακέραιοι',
-    badge: 'Βασικό',
     example: '875 : 25',
   },
   {
     id: 'intermediate_zero',
     label: 'Ενδιάμεσο Μηδέν',
-    badge: 'Προσοχή',
     example: '618 : 6',
   },
   {
     id: 'decimal_quotient',
     label: 'Δεκαδικό Πηλίκο',
-    badge: 'Συνέχιση',
     example: '45 : 4',
   },
   {
     id: 'decimal_dividend',
     label: 'Δεκαδικός Διαιρετέος',
-    badge: 'Υποδιαστολή',
     example: '37,5 : 5',
   },
   {
     id: 'decimal_both',
     label: 'Δεκαδικός με Δεκαδικό',
-    badge: 'Μετατόπιση',
     example: '14,25 : 2,5',
   },
 ];
@@ -68,7 +62,7 @@ export const LevelSelector: React.FC<LevelSelectorProps> = ({
 
   return (
     <div className="w-full flex flex-col gap-3 pb-4 border-b border-slate-200">
-      {/* 1. Επίπεδα: Ισόποσο Πλέγμα 6 στηλών (Grid 6) χωρίς horizontal scrollbar */}
+      {/* 1. Επίπεδα: Ισόποσο Πλέγμα 6 στηλών (Grid 6) χωρίς περιττά badges για μέγιστη ευρυχωρία */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5 p-1.5 bg-slate-100 rounded-2xl w-full">
         {LEVELS.map((lvl) => {
           const isSelected = currentLevel === lvl.id;
@@ -77,23 +71,14 @@ export const LevelSelector: React.FC<LevelSelectorProps> = ({
               key={lvl.id}
               type="button"
               onClick={() => onSelectLevel(lvl.id)}
-              className={`flex flex-col xl:flex-row items-center justify-center gap-1 xl:gap-2 px-2.5 py-2 text-xs rounded-xl transition-all cursor-pointer select-none text-center ${
+              className={`flex items-center justify-center px-3 py-2 text-xs md:text-[13px] rounded-xl transition-all cursor-pointer select-none text-center ${
                 isSelected
-                  ? 'bg-white text-indigo-950 font-bold shadow-xs ring-1 ring-slate-200/80'
+                  ? 'bg-white text-indigo-950 font-bold shadow-xs ring-1 ring-slate-200/90'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 font-medium'
               }`}
               title={`Παράδειγμα: ${lvl.example}`}
             >
               <span className="truncate">{lvl.label}</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-md font-semibold shrink-0 ${
-                  isSelected
-                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-100/80'
-                    : 'bg-slate-200/70 text-slate-500'
-                }`}
-              >
-                {lvl.badge}
-              </span>
             </button>
           );
         })}
@@ -102,26 +87,15 @@ export const LevelSelector: React.FC<LevelSelectorProps> = ({
         <button
           type="button"
           onClick={onOpenCustom}
-          className={`flex flex-col xl:flex-row items-center justify-center gap-1 xl:gap-2 px-2.5 py-2 text-xs rounded-xl transition-all cursor-pointer select-none text-center ${
+          className={`flex items-center justify-center gap-1.5 px-3 py-2 text-xs md:text-[13px] rounded-xl transition-all cursor-pointer select-none text-center ${
             currentLevel === 'custom'
-              ? 'bg-white text-indigo-700 font-bold shadow-xs ring-1 ring-slate-200/80'
+              ? 'bg-white text-indigo-700 font-bold shadow-xs ring-1 ring-slate-200/90'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 font-medium'
           }`}
           title="Εισαγωγή δικής σου διαίρεσης"
         >
-          <div className="flex items-center gap-1">
-            <PlusCircle className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-            <span className="truncate">Δική μου</span>
-          </div>
-          <span
-            className={`text-[10px] px-1.5 py-0.2 rounded-md font-semibold shrink-0 ${
-              currentLevel === 'custom'
-                ? 'bg-indigo-50 text-indigo-700 border border-indigo-100/80'
-                : 'bg-slate-200/70 text-slate-500'
-            }`}
-          >
-            Ελεύθερη
-          </span>
+          <PlusCircle className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+          <span className="truncate">Δική μου Διαίρεση</span>
         </button>
       </div>
 
