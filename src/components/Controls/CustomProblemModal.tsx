@@ -4,6 +4,7 @@
 
 import React, { useState } from 'react';
 import { X, Play, Calculator } from 'lucide-react';
+import { validateAndNormalizeNumber } from '../../engine/divisionEngine';
 
 interface CustomProblemModalProps {
   isOpen: boolean;
@@ -28,28 +29,26 @@ export const CustomProblemModal: React.FC<CustomProblemModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanDiv = dividend.trim().replace(/\./g, ',');
-    const cleanDis = divisor.trim().replace(/\./g, ',');
 
-    if (!cleanDiv || !cleanDis) {
-      setError('Παρακαλώ συμπληρώστε και τα δύο πεδία.');
+    const divCheck = validateAndNormalizeNumber(dividend, 'Διαιρετέος');
+    if (!divCheck.isValid) {
+      setError(divCheck.error || 'Μη έγκυρος διαιρετέος.');
       return;
     }
 
-    const divisorNum = parseFloat(cleanDis.replace(',', '.'));
-    if (isNaN(divisorNum) || divisorNum === 0) {
+    const disCheck = validateAndNormalizeNumber(divisor, 'Διαιρέτης');
+    if (!disCheck.isValid) {
+      setError(disCheck.error || 'Μη έγκυρος διαιρέτης.');
+      return;
+    }
+
+    if (disCheck.numValue === 0) {
       setError('Ο διαιρέτης δεν μπορεί να είναι 0!');
       return;
     }
 
-    const dividendNum = parseFloat(cleanDiv.replace(',', '.'));
-    if (isNaN(dividendNum)) {
-      setError('Μη έγκυρος διαιρετέος.');
-      return;
-    }
-
     setError(null);
-    onSubmit(cleanDiv, cleanDis);
+    onSubmit(divCheck.normalized, disCheck.normalized);
     onClose();
   };
 

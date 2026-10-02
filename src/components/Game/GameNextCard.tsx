@@ -53,8 +53,12 @@ export const GameNextCard: React.FC<GameNextCardProps> = ({
             </h3>
 
             <p className="text-xs text-slate-600 mt-0.5 font-mono-numbers">
-              {problem.originalDividendStr} : {problem.originalDivisorStr} = {problem.quotientStr}
-              {!problem.isExact && ` (υπόλοιπο: ${problem.finalRemainder})`}
+              {problem.originalDividendStr} : {problem.originalDivisorStr}{' '}
+              {(!problem.isExact && (problem.maxDecimalReached || problem.quotientStr.includes(','))) ? '≈' : '='}{' '}
+              {problem.quotientStr}
+              {problem.isExact && ' (τέλεια)'}
+              {!problem.isExact && !problem.quotientStr.includes(',') && ` (υπόλοιπο: ${problem.finalRemainder})`}
+              {!problem.isExact && problem.quotientStr.includes(',') && ` (προσέγγιση χιλιοστού)`}
             </p>
           </div>
         </div>

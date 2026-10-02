@@ -6,7 +6,7 @@
 
 import { useState, useCallback, useMemo, useRef } from 'react';
 import { DivisionProblem, DivisionStep, SubStep, UserInputStepState, DifficultyLevel, ShiftUserState } from '../types/division';
-import { solveDivision, generateRandomProblem } from '../engine/divisionEngine';
+import { solveDivision, generateRandomProblem, validateAndNormalizeNumber } from '../engine/divisionEngine';
 
 export interface FeedbackState {
   status: 'idle' | 'success' | 'error' | 'hint';
@@ -279,10 +279,10 @@ export function useDivision(initialDividend: string = '875', initialDivisor: str
     const cleanExpected = expected.trim().replace(/\s+/g, '').replace(/\./g, ',');
     if (cleanInput === cleanExpected) return true;
 
-    const numInput = parseFloat(cleanInput.replace(',', '.'));
-    const numExpected = parseFloat(cleanExpected.replace(',', '.'));
-    if (!isNaN(numInput) && !isNaN(numExpected)) {
-      return Math.abs(numInput - numExpected) < 1e-6;
+    const validIn = validateAndNormalizeNumber(cleanInput);
+    const validExp = validateAndNormalizeNumber(cleanExpected);
+    if (validIn.isValid && validExp.isValid) {
+      return Math.abs(validIn.numValue - validExp.numValue) < 1e-6;
     }
     return false;
   };
@@ -547,9 +547,14 @@ export function useDivision(initialDividend: string = '875', initialDivisor: str
         const mistakes = sessionMistakesRef.current;
         const isFlawless = mistakes === 0;
 
-        let completionMsg = problem.isExact
-          ? `Συγχαρητήρια! Η διαίρεση ολοκληρώθηκε τέλεια με πηλίκο ${problem.quotientStr} και υπόλοιπο 0!`
-          : `Συγχαρητήρια! Η διαίρεση ολοκληρώθηκε με πηλίκο ${problem.quotientStr} και υπόλοιπο ${problem.finalRemainder}!`;
+        let completionMsg = '';
+        if (problem.isExact) {
+          completionMsg = `Συγχαρητήρια! Η διαίρεση ολοκληρώθηκε τέλεια με πηλίκο ${problem.quotientStr} και υπόλοιπο 0!`;
+        } else if (problem.maxDecimalReached || problem.quotientStr.includes(',')) {
+          completionMsg = `Μπράβο! Η διαίρεση δεν τελειώνει (περιοδική) — ολοκληρώθηκε με προσέγγιση 3 δεκαδικών: πηλίκο ≈ ${problem.quotientStr}!`;
+        } else {
+          completionMsg = `Συγχαρητήρια! Η διαίρεση ολοκληρώθηκε με πηλίκο ${problem.quotientStr} και υπόλοιπο ${problem.finalRemainder}!`;
+        }
 
         if (level !== 'custom') {
           if (isFlawless) {

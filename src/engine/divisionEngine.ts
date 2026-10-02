@@ -6,10 +6,131 @@
 import { DivisionProblem, DivisionStep, ShiftInfo } from '../types/division';
 
 /**
- * Καθαρίζει και μορφοποιεί αριθμητικό string (αποδοχή κόμματος ή τελείας)
+ * Αυστηρός και ασφαλής έλεγχος εγκυρότητας αριθμητικής εισόδου.
+ * Αποδέχεται μόνο καθαρούς θετικούς αριθμούς (ακέραιους ή δεκαδικούς με 1 κόμμα ή τελεία).
+ * Απορρίπτει: γράμματα (π.χ. '12a'), πολλαπλές υποδιαστολές ('1,2,3', '1.2.3'),
+ * αρνητικούς αριθμούς ('-5'), κενά σύμβολα, κλπ.
+ */
+export function validateAndNormalizeNumber(
+  rawInput: string,
+  fieldName: string = 'αριθμός'
+): { isValid: boolean; normalized: string; numValue: number; error?: string } {
+  if (!rawInput || typeof rawInput !== 'string') {
+    return {
+      isValid: false,
+      normalized: '',
+      numValue: 0,
+      error: `Παρακαλώ συμπληρώστε το πεδίο (${fieldName}).`,
+    };
+  }
+
+  // Αφαίρεση εξωτερικών και ενδιάμεσων κενών
+  const trimmed = rawInput.trim().replace(/\s+/g, '');
+  if (!trimmed) {
+    return {
+      isValid: false,
+      normalized: '',
+      numValue: 0,
+      error: `Το πεδίο (${fieldName}) δεν μπορεί να είναι κενό.`,
+    };
+  }
+
+  // Έλεγχος για αρνητικούς αριθμούς
+  if (trimmed.startsWith('-')) {
+    return {
+      isValid: false,
+      normalized: '',
+      numValue: 0,
+      error: `Το πεδίο (${fieldName}) δεν μπορεί να είναι αρνητικός αριθμός.`,
+    };
+  }
+
+  // Μετατροπή τελείας σε κόμμα για ενιαία αντιμετώπιση
+  const withComma = trimmed.replace(/\./g, ',');
+
+  // Έλεγχος για πολλαπλές υποδιαστολές (π.χ. 1,2,3 ή 1.2.3)
+  const commaCount = (withComma.match(/,/g) || []).length;
+  if (commaCount > 1) {
+    return {
+      isValid: false,
+      normalized: '',
+      numValue: 0,
+      error: `Ο ${fieldName} περιέχει περισσότερες από μία υποδιαστολές (${trimmed}).`,
+    };
+  }
+
+  // Αυστηρός έλεγχος επιτρεπόμενων χαρακτήρων: ΜΟΝΟ ψηφία 0-9 και προαιρετικά 1 κόμμα
+  if (!/^[0-9]+(,[0-9]+)?$/.test(withComma)) {
+    // Ειδική περίπτωση: αρχίζει με κόμμα, π.χ. ,5 -> 0,5
+    if (/^,[0-9]+$/.test(withComma)) {
+      const fixed = `0${withComma}`;
+      const num = Number(fixed.replace(',', '.'));
+      return { isValid: true, normalized: fixed, numValue: num };
+    }
+    // Ειδική περίπτωση: τελειώνει με κόμμα, π.χ. 5, -> 5
+    if (/^[0-9]+,$/.test(withComma)) {
+      const fixed = withComma.slice(0, -1);
+      const num = Number(fixed);
+      return { isValid: true, normalized: fixed, numValue: num };
+    }
+    if (withComma === ',') {
+      return {
+        isValid: false,
+        normalized: '',
+        numValue: 0,
+        error: `Εισαγάγατε μόνο υποδιαστολή χωρίς ψηφία.`,
+      };
+    }
+    return {
+      isValid: false,
+      normalized: '',
+      numValue: 0,
+      error: `Ο ${fieldName} περιέχει μη έγκυρους χαρακτήρες (${trimmed}). Επιτρέπονται μόνο αριθμητικά ψηφία (0-9).`,
+    };
+  }
+
+  // Αφαίρεση περιττών αρχικών μηδενικών από το ακέραιο μέρος (π.χ. 007 -> 7, 00,5 -> 0,5)
+  const parts = withComma.split(',');
+  const intPart = parts[0].replace(/^0+(?=\d)/, '') || '0';
+  const normalized = parts.length > 1 ? `${intPart},${parts[1]}` : intPart;
+
+  // Αυστηρός έλεγχος μετατροπής μέσω Number() (ΟΧΙ parseFloat)
+  const numValue = Number(normalized.replace(',', '.'));
+  if (isNaN(numValue) || !isFinite(numValue)) {
+    return {
+      isValid: false,
+      normalized: '',
+      numValue: 0,
+      error: `Μη έγκυρη αριθμητική τιμή στο πεδίο (${fieldName}).`,
+    };
+  }
+
+  // Έλεγχος μέγιστου ορίου
+  if (numValue > 999999) {
+    return {
+      isValid: false,
+      normalized: '',
+      numValue: 0,
+      error: `Ο ${fieldName} είναι υπερβολικά μεγάλος (επιτρέπονται αριθμοί έως 999.999).`,
+    };
+  }
+
+  return {
+    isValid: true,
+    normalized,
+    numValue,
+  };
+}
+
+/**
+ * Καθαρίζει, ελέγχει και μορφοποιεί αριθμητικό string
  */
 export function normalizeInputNumber(val: string): string {
-  return val.trim().replace(/\s+/g, '').replace(/\./g, ',');
+  const result = validateAndNormalizeNumber(val);
+  if (!result.isValid) {
+    throw new Error(result.error || 'Μη έγκυρος αριθμός.');
+  }
+  return result.normalized;
 }
 
 /**
@@ -49,18 +170,22 @@ export function solveDivision(
   divisorInput: string,
   maxDecimalPlaces: number = 3
 ): DivisionProblem {
-  const cleanDividend = normalizeInputNumber(dividendInput);
-  const cleanDivisor = normalizeInputNumber(divisorInput);
-
-  if (!cleanDividend || !cleanDivisor) {
-    throw new Error('Παρακαλώ εισάγετε έγκυρο Διαιρετέο και Διαιρέτη.');
+  const divValidation = validateAndNormalizeNumber(dividendInput, 'Διαιρετέος');
+  if (!divValidation.isValid) {
+    throw new Error(divValidation.error || 'Μη έγκυρος Διαιρετέος.');
   }
 
-  // Έλεγχος για διαίρεση με το μηδέν
-  const divisorNumCheck = parseFloat(cleanDivisor.replace(',', '.'));
-  if (isNaN(divisorNumCheck) || divisorNumCheck === 0) {
+  const disValidation = validateAndNormalizeNumber(divisorInput, 'Διαιρέτης');
+  if (!disValidation.isValid) {
+    throw new Error(disValidation.error || 'Μη έγκυρος Διαιρέτης.');
+  }
+
+  if (disValidation.numValue === 0) {
     throw new Error('Ο διαιρέτης δεν μπορεί να είναι 0!');
   }
+
+  const cleanDividend = divValidation.normalized;
+  const cleanDivisor = disValidation.normalized;
 
   // 1. Μετατόπιση υποδιαστολής αν ο διαιρέτης έχει δεκαδικά
   const divisorDecimals = getDecimalCount(cleanDivisor);
@@ -92,6 +217,50 @@ export function solveDivision(
     throw new Error('Μη έγκυρος ακέραιος διαιρέτης μετά τη μετατροπή.');
   }
 
+  // Ειδική περίπτωση: Διαιρετέος 0 (π.χ. 0 : 5 = 0)
+  if (divValidation.numValue === 0) {
+    const singleStep: DivisionStep = {
+      stepIndex: 0,
+      currentChunk: 0,
+      chunkDigitsStr: '0',
+      chunkStartIndex: 0,
+      chunkEndIndex: 0,
+      quotientDigit: 0,
+      isDecimalPointPlacedHere: false,
+      product: 0,
+      productDigitsStr: '0',
+      remainder: 0,
+      remainderDigitsStr: '0',
+      broughtDownDigit: null,
+      broughtDownFromIndex: null,
+      isBroughtDownZero: false,
+      nextChunk: null,
+      columnEndIndex: 0,
+      hints: {
+        quotientPrompt: `Πόσες φορές χωράει το ${effectiveDivisor} στο 0;`,
+        productPrompt: `0 × ${effectiveDivisor} = 0`,
+        remainderPrompt: `0 - 0 = 0`,
+        bringDownPrompt: `Η διαίρεση ολοκληρώθηκε!`,
+        detailedExplanation: `Το ${effectiveDivisor} στο 0 χωράει 0 φορές. 0 × ${effectiveDivisor} = 0, υπόλοιπο 0. Το πηλίκο είναι 0.`,
+      },
+    };
+
+    return {
+      id: `div_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      originalDividendStr: cleanDividend,
+      originalDivisorStr: cleanDivisor,
+      effectiveDividendStr: '0',
+      effectiveDivisor,
+      dividendDecimalIndex: null,
+      shiftInfo,
+      steps: [singleStep],
+      quotientStr: '0',
+      finalRemainder: 0,
+      isExact: true,
+      maxDecimalReached: false,
+    };
+  }
+
   // 2. Ανάλυση ψηφίων του effectiveDividendStr
   const dividendParts = effectiveDividendStr.split(',');
   const integerPartStr = dividendParts[0];
@@ -121,7 +290,6 @@ export function solveDivision(
   let chunkEndIndex = 0;
   let stepIndex = 0;
   let decimalPlaced = false;
-  let decimalPlacesCount = 0;
 
   // Βρίσκουμε το αρχικό τμήμα
   // Ειδική περίπτωση: αν ολόκληρο το ακέραιο μέρος είναι μικρότερο από τον διαιρέτη
@@ -155,7 +323,6 @@ export function solveDivision(
     } else {
       broughtDownDigit = '0';
       isBroughtDownZero = true;
-      decimalPlacesCount++;
     }
 
     const nextChunk = remainder * 10 + parseInt(broughtDownDigit, 10);
@@ -245,11 +412,12 @@ export function solveDivision(
       broughtDownFromIndex = entry.originalIndex;
       digitPointer++;
     } else {
-      // Δεν υπάρχουν άλλα ψηφία
+      // Δεν υπάρχουν άλλα ψηφία στον διαιρετέο
+      const currentDecimals = quotientStr.includes(',') ? (quotientStr.split(',')[1] || '').length : 0;
       if (remainder === 0) {
         // Τέλεια διαίρεση! Ολοκληρώθηκε!
         finished = true;
-      } else if (decimalPlacesCount < maxDecimalPlaces) {
+      } else if (currentDecimals < maxDecimalPlaces) {
         // Συνέχιση με δεκαδικά: κατεβάζουμε 0
         if (!decimalPlaced) {
           decimalPlaced = true;
@@ -261,7 +429,6 @@ export function solveDivision(
         }
         broughtDownDigit = '0';
         isBroughtDownZero = true;
-        decimalPlacesCount++;
       } else {
         // Φτάσαμε στο μέγιστο όριο δεκαδικών
         finished = true;
@@ -269,13 +436,15 @@ export function solveDivision(
     }
 
     const nextChunk = broughtDownDigit !== null ? remainder * 10 + parseInt(broughtDownDigit, 10) : null;
-    const colEnd = stepIndex === 0 && steps.length === 0 ? chunkEndIndex : Math.max(chunkEndIndex, digitPointer - 2);
+    const colEnd = steps.length === 0 ? chunkEndIndex : steps[steps.length - 1].columnEndIndex + 1;
+    const chunkLen = currentChunk.toString().length;
+    const stepChunkStart = colEnd - chunkLen + 1;
 
     const step: DivisionStep = {
       stepIndex,
       currentChunk,
       chunkDigitsStr: currentChunk.toString(),
-      chunkStartIndex,
+      chunkStartIndex: stepChunkStart,
       chunkEndIndex: colEnd,
       quotientDigit,
       isDecimalPointPlacedHere: isDecimalPlacedHere,
@@ -322,6 +491,7 @@ export function solveDivision(
   const finalStep = steps[steps.length - 1];
   const finalRemainder = finalStep ? finalStep.remainder : 0;
   const isExact = finalRemainder === 0;
+  const totalDecimals = quotientStr.includes(',') ? (quotientStr.split(',')[1] || '').length : 0;
 
   return {
     id: `div_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
@@ -335,7 +505,7 @@ export function solveDivision(
     quotientStr,
     finalRemainder,
     isExact,
-    maxDecimalReached: decimalPlacesCount >= maxDecimalPlaces && finalRemainder !== 0,
+    maxDecimalReached: !isExact && totalDecimals >= maxDecimalPlaces,
   };
 }
 
@@ -414,27 +584,48 @@ export function generateRandomProblem(level: string, tierIndex?: number): { divi
       // Ακέραιοι που δίνουν καθαρό δεκαδικό πηλίκο
       if (tier === 0) {
         // Βαθμίδα 1: Πηλίκο με 1 δεκαδικό ψηφίο (διαιρέτες 2, 4, 5, 10, 20)
-        const divisor = choice([2, 4, 5, 10, 20]);
+        // Επιλογή διαιρέτη και υπολοίπου r ώστε r/divisor να έχει ακριβώς 1 δεκαδικό
+        const configs: { divisor: number; remainders: number[] }[] = [
+          { divisor: 2, remainders: [1] },
+          { divisor: 4, remainders: [2] },
+          { divisor: 5, remainders: [1, 2, 3, 4] },
+          { divisor: 10, remainders: [1, 2, 3, 4, 5, 6, 7, 8, 9] },
+          { divisor: 20, remainders: [2, 6, 10, 14, 18] },
+        ];
+        const cfg = choice(configs);
+        const divisor = cfg.divisor;
+        const remainder = choice(cfg.remainders);
         const intQuot = randInt(5, 35);
-        const decQuot = choice([0.5, 0.2, 0.4, 0.6, 0.8]);
-        const quotient = intQuot + decQuot;
-        const dividend = Math.round(quotient * divisor);
+        const dividend = intQuot * divisor + remainder;
         return { dividend: dividend.toString(), divisor: divisor.toString() };
       } else if (tier === 1) {
         // Βαθμίδα 2: Πηλίκο με 2 δεκαδικά ψηφία (διαιρέτες 4, 20, 25, 50)
-        const divisor = choice([4, 20, 25, 50]);
+        // Επιλογή διαιρέτη και υπολοίπου r ώστε r/divisor να έχει ακριβώς 2 δεκαδικά
+        const configs: { divisor: number; remainders: number[] }[] = [
+          { divisor: 4, remainders: [1, 3] },
+          { divisor: 20, remainders: [1, 3, 7, 9, 11, 13, 17, 19] },
+          { divisor: 25, remainders: [1, 2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 16, 17, 18, 19, 21, 22, 23, 24] },
+          { divisor: 50, remainders: [1, 3, 7, 9, 11, 13, 17, 19, 21, 23, 27, 29, 31, 33, 37, 39, 41, 43, 47, 49] },
+        ];
+        const cfg = choice(configs);
+        const divisor = cfg.divisor;
+        const remainder = choice(cfg.remainders);
         const intQuot = randInt(3, 25);
-        const decQuot = choice([0.25, 0.75, 0.15, 0.35, 0.45, 0.65, 0.85]);
-        const quotient = intQuot + decQuot;
-        const dividend = Math.round(quotient * divisor);
+        const dividend = intQuot * divisor + remainder;
         return { dividend: dividend.toString(), divisor: divisor.toString() };
       } else {
         // Βαθμίδα 3: Πηλίκο με 3 δεκαδικά ψηφία (διαιρέτες 8, 40, 125)
-        const divisor = choice([8, 40, 125]);
+        // Επιλογή διαιρέτη και υπολοίπου r ώστε r/divisor να έχει ακριβώς 3 δεκαδικά
+        const configs: { divisor: number; remainders: number[] }[] = [
+          { divisor: 8, remainders: [1, 3, 5, 7] },
+          { divisor: 40, remainders: [1, 3, 7, 9, 11, 13, 17, 19, 21, 23, 27, 29, 31, 33, 37, 39] },
+          { divisor: 125, remainders: [1, 2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 16, 17, 18, 19, 21, 22, 23, 24] },
+        ];
+        const cfg = choice(configs);
+        const divisor = cfg.divisor;
+        const remainder = choice(cfg.remainders);
         const intQuot = randInt(2, 18);
-        const decQuot = choice([0.125, 0.375, 0.625, 0.875]);
-        const quotient = intQuot + decQuot;
-        const dividend = Math.round(quotient * divisor);
+        const dividend = intQuot * divisor + remainder;
         return { dividend: dividend.toString(), divisor: divisor.toString() };
       }
     }
@@ -444,64 +635,55 @@ export function generateRandomProblem(level: string, tierIndex?: number): { divi
       if (tier === 0) {
         // Βαθμίδα 1: 1 δεκαδικό στον διαιρετέο, μονοψήφιος διαιρέτης (3-8)
         const divisor = randInt(3, 8);
-        const quotientVal = randInt(12, 55) / 10;
-        const dividendVal = quotientVal * divisor;
-        return { dividend: formatNumberGreek(dividendVal, 1), divisor: divisor.toString() };
+        let Q = randInt(12, 55);
+        while ((Q * divisor) % 10 === 0) Q += 1;
+        const D = Q * divisor;
+        return { dividend: formatNumberGreek(D / 10, 1), divisor: divisor.toString() };
       } else if (tier === 1) {
-        // Βαθμίδα 2: 2 δεκαδικά στον διαιρετέο, μονοψήφιος ή απλός διψήφιος διαιρέτης (4-15)
-        const divisor = choice([4, 5, 6, 7, 8, 12, 15, 20, 25]);
-        const quotientVal = randInt(105, 455) / 100;
-        const dividendVal = quotientVal * divisor;
-        return { dividend: formatNumberGreek(dividendVal, 2), divisor: divisor.toString() };
+        // Βαθμίδα 2: 2 δεκαδικά στον διαιρετέο
+        const divisor = choice([3, 4, 5, 6, 7, 8, 12, 15, 20, 25]);
+        let Q = randInt(105, 455);
+        while ((Q * divisor) % 10 === 0) Q += 1;
+        const D = Q * divisor;
+        return { dividend: formatNumberGreek(D / 100, 2), divisor: divisor.toString() };
       } else {
-        // Βαθμίδα 3: 2-3 δεκαδικά στον διαιρετέο, διψήφιος διαιρέτης (12-35)
+        // Βαθμίδα 3: 3 δεκαδικά στον διαιρετέο
         const divisor = choice([12, 14, 15, 16, 24, 25, 32]);
-        const quotientVal = randInt(1125, 6250) / 1000;
-        const dividendVal = quotientVal * divisor;
-        return { dividend: formatNumberGreek(dividendVal, 3), divisor: divisor.toString() };
+        let Q = randInt(1125, 4525);
+        while ((Q * divisor) % 10 === 0) Q += 1;
+        const D = Q * divisor;
+        return { dividend: formatNumberGreek(D / 1000, 3), divisor: divisor.toString() };
       }
     }
 
     case 'decimal_both': {
       // Δεκαδικός διαιρετέος με δεκαδικό διαιρέτη (απαιτεί μετατόπιση υποδιαστολής)
       if (tier === 0) {
-        // Βαθμίδα 1 (Βασική - ×10):
-        // Διαιρέτης με 1 δεκαδικό ψηφίο (0.4, 0.5, 0.6, 0.8, 1.2, 1.5, 2.4, 2.5, 3.2, 4.5)
-        const divisorVal = choice([0.4, 0.5, 0.6, 0.8, 1.2, 1.5, 2.4, 2.5, 3.2, 4.5]);
-        const quotientVal = choice([
-          randInt(12, 45),
-          randInt(12, 35) + 0.5
-        ]);
-        const dividendVal = divisorVal * quotientVal;
+        // Βαθμίδα 1 (Βασική - ×10): Διαιρέτης με 1 δεκαδικό ψηφίο
+        const dEff = choice([4, 5, 6, 8, 12, 15, 24, 25, 32, 45]);
+        const q = randInt(12, 45);
+        const DEff = dEff * q;
         return {
-          dividend: formatNumberGreek(dividendVal, 2),
-          divisor: formatNumberGreek(divisorVal, 1),
+          dividend: formatNumberGreek(DEff / 10, 1),
+          divisor: formatNumberGreek(dEff / 10, 1),
         };
       } else if (tier === 1) {
-        // Βαθμίδα 2 (Μεσαία - ×100):
-        // Διαιρέτης με 2 δεκαδικά ψηφία (0.25, 0.15, 0.35, 0.75, 1.25, 0.08, 0.12, 0.05, 2.25)
-        // ή διψήφιος ακέραιος με δεκαδικό (12.5, 15.5)
-        const divisorVal = choice([
-          0.25, 0.15, 0.35, 0.75, 1.25, 0.08, 0.12, 0.05, 2.25, 12.5, 15.5
-        ]);
-        const quotientVal = randInt(14, 55);
-        const dividendVal = divisorVal * quotientVal;
+        // Βαθμίδα 2 (Μεσαία - ×100): Διαιρέτης με 2 δεκαδικά ψηφία
+        const dEff = choice([5, 8, 12, 15, 25, 35, 45, 75, 125, 175, 225]);
+        const q = randInt(14, 55);
+        const DEff = dEff * q;
         return {
-          dividend: formatNumberGreek(dividendVal, 3),
-          divisor: formatNumberGreek(divisorVal, 2),
+          dividend: formatNumberGreek(DEff / 100, 2),
+          divisor: formatNumberGreek(dEff / 100, 2),
         };
       } else {
-        // Βαθμίδα 3 (Προχωρημένη - ×1000):
-        // Διαιρέτης με 3 δεκαδικά ψηφία (0.125, 0.025, 0.008, 0.005, 0.075, 0.016)
-        const divisorVal = choice([0.125, 0.025, 0.008, 0.005, 0.075, 0.016]);
-        const quotientVal = choice([
-          randInt(12, 48),
-          randInt(12, 32) + 0.5
-        ]);
-        const dividendVal = divisorVal * quotientVal;
+        // Βαθμίδα 3 (Προχωρημένη - ×1000): Διαιρέτης με 3 δεκαδικά ψηφία
+        const dEff = choice([5, 8, 16, 25, 45, 75, 125]);
+        const q = randInt(12, 48);
+        const DEff = dEff * q;
         return {
-          dividend: formatNumberGreek(dividendVal, 3),
-          divisor: formatNumberGreek(divisorVal, 3),
+          dividend: formatNumberGreek(DEff / 1000, 3),
+          divisor: formatNumberGreek(dEff / 1000, 3),
         };
       }
     }

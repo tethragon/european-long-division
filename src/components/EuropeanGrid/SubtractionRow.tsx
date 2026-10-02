@@ -55,10 +55,13 @@ export const SubtractionRow: React.FC<SubtractionRowProps> = ({
   const colEnd = step.columnEndIndex;
   const productLen = step.productDigitsStr.length;
   const productStartCol = colEnd - productLen + 1;
-  const minusCol = productStartCol - 1; // Μπορεί να είναι -1, 0, 1, κλπ.
 
   const remainderLen = step.remainderDigitsStr.length;
   const remainderStartCol = colEnd - remainderLen + 1;
+  const chunkLen = step.chunkDigitsStr.length;
+  const chunkStartCol = colEnd - chunkLen + 1;
+  const lineStartCol = Math.min(productStartCol, remainderStartCol, chunkStartCol);
+  const minusCol = lineStartCol - 1; // Μπορεί να είναι -1, 0, 1, κλπ.
   const bringDownCol = colEnd + 1;
 
   // Auto-focus στο κατάλληλο κελί ή κουμπί
@@ -204,7 +207,7 @@ export const SubtractionRow: React.FC<SubtractionRowProps> = ({
       {/* 2. ΟΡΙΖΟΝΤΙΑ ΓΡΑΜΜΗ ΑΦΑΙΡΕΣΗΣ */}
       <div className="flex items-center gap-1 my-0.5">
         {allColIndices.map((col) => {
-          const isLineCol = col >= productStartCol && col <= colEnd;
+          const isLineCol = col >= lineStartCol && col <= colEnd;
           return (
             <div
               key={`line-col-${col}`}
