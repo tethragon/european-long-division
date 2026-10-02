@@ -14,10 +14,19 @@ export interface FeedbackState {
   errorCount: number;
 }
 
-export function useDivision(initialDividend: string = '875', initialDivisor: string = '25') {
+export function useDivision(initialDividend?: string, initialDivisor?: string) {
   const [level, setLevel] = useState<DifficultyLevel>('easy');
-  const [dividendInput, setDividendInput] = useState<string>(initialDividend);
-  const [divisorInput, setDivisorInput] = useState<string>(initialDivisor);
+
+  // Αρχική διαίρεση: αν δεν δοθεί ρητά, παράγουμε αμέσως τυχαία άσκηση του επιπέδου 'easy'
+  const initialData = useMemo(() => {
+    if (initialDividend && initialDivisor) {
+      return { dividend: initialDividend, divisor: initialDivisor };
+    }
+    return generateRandomProblem('easy', 0);
+  }, []);
+
+  const [dividendInput, setDividendInput] = useState<string>(initialData.dividend);
+  const [divisorInput, setDivisorInput] = useState<string>(initialData.divisor);
   
   // Βαθμίδα δυσκολίας ανά επίπεδο (0: Βασικό, 1: Μεσαίο, 2: Προχωρημένο)
   const [currentTier, setCurrentTier] = useState<number>(0);
@@ -34,7 +43,7 @@ export function useDivision(initialDividend: string = '875', initialDivisor: str
 
   // Προ-υπολογισμένη λύση από τη μηχανή
   const [problem, setProblem] = useState<DivisionProblem>(() => 
-    solveDivision(initialDividend, initialDivisor)
+    solveDivision(initialData.dividend, initialData.divisor)
   );
 
   // Κατάσταση μετατόπισης υποδιαστολής αν ο διαιρέτης είναι δεκαδικός

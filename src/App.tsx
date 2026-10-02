@@ -54,7 +54,7 @@ export default function App() {
     loadProblem,
     selectLevelAndGenerate,
     restartCurrent,
-  } = useDivision('875', '25');
+  } = useDivision();
 
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
   const [isTheoryModalOpen, setIsTheoryModalOpen] = useState(false);
