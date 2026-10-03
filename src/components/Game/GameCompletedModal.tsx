@@ -43,8 +43,28 @@ export const GameCompletedModal: React.FC<GameCompletedModalProps> = ({
           // Ignore if canvas not supported
         }
       }
+
+      // 📡 Ενημέρωση εξωτερικού συστήματος LMS / SCORM wrapper (αν τρέχει μέσα σε eFront)
+      try {
+        if (window.parent && window.parent !== window) {
+          const perfectCount = session.results.filter((r) => r.scorePercent >= 80).length;
+          window.parent.postMessage(
+            {
+              type: 'MATH_DIVISION_GAME_COMPLETED',
+              score: Math.round(totalScorePercent),
+              passed: totalScorePercent >= 50,
+              totalProblems: session.settings.totalProblems,
+              perfectCount,
+              scope: session.settings.scope,
+            },
+            '*'
+          );
+        }
+      } catch {
+        // Safe cross-origin ignore
+      }
     }
-  }, [isOpen, totalScorePercent]);
+  }, [isOpen, totalScorePercent, session]);
 
   if (!isOpen) return null;
 
