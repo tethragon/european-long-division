@@ -54,6 +54,7 @@ export default function App() {
     loadProblem,
     selectLevelAndGenerate,
     restartCurrent,
+    setGameModeInfo,
   } = useDivision();
 
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
@@ -105,6 +106,15 @@ export default function App() {
     advanceToNextProblem,
     exitGame,
   } = useGameMode();
+
+  // Συγχρονισμός κατάστασης Game Mode στο useDivision ώστε τα μηνύματα ολοκλήρωσης
+  // να προσαρμόζονται κατάλληλα (π.χ. «Επόμενη Άσκηση» αντί για «Νέα Άσκηση»)
+  useEffect(() => {
+    setGameModeInfo({
+      isActive: gameSession.isActive,
+      isLastProblem: gameSession.currentIndex + 1 >= gameSession.settings.totalProblems,
+    });
+  }, [gameSession.isActive, gameSession.currentIndex, gameSession.settings.totalProblems, setGameModeInfo]);
 
   // Καταγραφή ολοκλήρωσης άσκησης στο Game Mode
   const lastRecordedIndexRef = useRef<number | null>(null);

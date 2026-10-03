@@ -6,7 +6,7 @@
 import React from 'react';
 import { SubStep, DivisionStep } from '../../types/division';
 import { FeedbackState } from '../../hooks/useDivision';
-import { Lightbulb, HelpCircle, CheckCircle2, AlertCircle, BookOpen, Wand2 } from 'lucide-react';
+import { Lightbulb, HelpCircle, CheckCircle2, AlertCircle, BookOpen, Wand2, Check } from 'lucide-react';
 
 interface PedagogicalGuideProps {
   currentStep?: DivisionStep;
@@ -27,7 +27,7 @@ const SUBSTEP_LABELS: Record<SubStep, { name: string; number: number }> = {
   product: { name: 'Πολλαπλασιασμός (Γινόμενο)', number: 2 },
   remainder: { name: 'Αφαίρεση (Υπόλοιπο)', number: 3 },
   bring_down: { name: 'Κατέβασμα Ψηφίου', number: 4 },
-  completed: { name: 'Ολοκληρώθηκε!', number: 5 },
+  completed: { name: 'Ολοκληρώθηκε!', number: 4 },
 };
 
 export const PedagogicalGuide: React.FC<PedagogicalGuideProps> = ({
@@ -48,16 +48,42 @@ export const PedagogicalGuide: React.FC<PedagogicalGuideProps> = ({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-200">
         {/* Στάδιο & Βήμα */}
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-            {activeStepIndex + 1}
+          <div
+            className={`w-7 h-7 rounded-lg text-white flex items-center justify-center font-bold text-xs shadow-xs transition-colors ${
+              activeSubStep === 'completed' ? 'bg-emerald-600' : 'bg-indigo-600'
+            }`}
+          >
+            {activeSubStep === 'completed' ? (
+              <Check className="w-4 h-4 stroke-[3]" />
+            ) : (
+              activeStepIndex + 1
+            )}
           </div>
           <div>
             <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-              <span>Βήμα {activeStepIndex + 1} από {totalSteps}</span>
-              <span aria-hidden="true">·</span>
-              <span className="font-semibold text-indigo-700">
-                Μέρος {currentSubStepInfo.number}/4: {currentSubStepInfo.name}
-              </span>
+              {activeSubStep === 'completed' ? (
+                <>
+                  <span>Ολοκληρώθηκαν και τα {totalSteps} βήματα</span>
+                  <span aria-hidden="true">·</span>
+                  <span className="font-semibold text-emerald-700">
+                    ✨ Επιτυχής Ολοκλήρωση
+                  </span>
+                </>
+              ) : activeSubStep === 'shift_multiplier' || activeSubStep === 'shift_inputs' ? (
+                <>
+                  <span className="font-semibold text-indigo-700">Προετοιμασία</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{currentSubStepInfo.name}</span>
+                </>
+              ) : (
+                <>
+                  <span>Βήμα {activeStepIndex + 1} από {totalSteps}</span>
+                  <span aria-hidden="true">·</span>
+                  <span className="font-semibold text-indigo-700">
+                    Μέρος {currentSubStepInfo.number}/4: {currentSubStepInfo.name}
+                  </span>
+                </>
+              )}
             </div>
             <h2 className="text-sm md:text-base font-bold text-slate-900 mt-0.5">
               {activeSubStep === 'shift_multiplier' && 'Επίλεξε με ποιον αριθμό (10, 100, 1.000) πρέπει να πολλαπλασιάσουμε:'}

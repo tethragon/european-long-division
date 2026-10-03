@@ -139,33 +139,6 @@ export const DivisionBoard: React.FC<DivisionBoardProps> = ({
               })}
             </div>
           )}
-
-          {/* Τελικό μήνυμα επιτυχίας στο κάτω μέρος των πράξεων */}
-          {isFinished && (
-            <div className="mt-4 pt-3 border-t border-slate-200 flex items-center gap-2 text-sm">
-              <CheckCircle2 className={`w-4 h-4 ${problem.isExact ? 'text-emerald-600' : (!problem.isExact && (problem.maxDecimalReached || problem.quotientStr.includes(','))) ? 'text-amber-600' : 'text-indigo-600'}`} />
-              {problem.isExact ? (
-                <span className="text-emerald-700 font-semibold">
-                  Τελικό Υπόλοιπο: <strong className="font-mono-numbers text-base font-bold text-slate-900">0</strong>{' '}
-                  <span className="text-emerald-600 font-medium">(Τέλεια διαίρεση)</span>
-                </span>
-              ) : (!problem.isExact && (problem.maxDecimalReached || problem.quotientStr.includes(','))) ? (
-                <span className="text-amber-800 font-semibold">
-                  Η διαίρεση συνεχίζεται επ' άπειρον{' '}
-                  <span className="text-slate-600 text-xs font-normal">
-                    (σταματήσαμε στα 3 δεκαδικά με υπόλοιπο {problem.finalRemainder} στο χιλιοστό)
-                  </span>
-                </span>
-              ) : (
-                <span className="text-slate-800 font-semibold">
-                  Τελικό Υπόλοιπο:{' '}
-                  <strong className="font-mono-numbers text-base font-bold text-slate-900">
-                    {problem.finalRemainder}
-                  </strong>
-                </span>
-              )}
-            </div>
-          )}
         </div>
 
         {/* ============================================================ */}
@@ -183,6 +156,33 @@ export const DivisionBoard: React.FC<DivisionBoardProps> = ({
           setFocusedCellId={setFocusedCellId}
         />
       </div>
+
+      {/* 3. ΤΕΛΙΚΟ ΜΗΝΥΜΑ ΕΠΙΤΥΧΙΑΣ (Πλήρες πλάτος κάτω από τον πίνακα, χωρίς να διογκώνει το αριστερό τμήμα) */}
+      {isFinished && (
+        <div className="mt-4 pt-3 border-t border-slate-200 flex items-center gap-2 text-sm">
+          <CheckCircle2 className={`w-4 h-4 ${problem.isExact ? 'text-emerald-600' : (!problem.isExact && (problem.maxDecimalReached || problem.quotientStr.includes(','))) ? 'text-amber-600' : 'text-indigo-600'}`} />
+          {problem.isExact ? (
+            <span className="text-emerald-700 font-semibold">
+              Τελικό Υπόλοιπο: <strong className="font-mono-numbers text-base font-bold text-slate-900">0</strong>{' '}
+              <span className="text-emerald-600 font-medium">(Τέλεια διαίρεση)</span>
+            </span>
+          ) : (!problem.isExact && (problem.maxDecimalReached || problem.quotientStr.includes(','))) ? (
+            <span className="text-amber-800 font-semibold">
+              Η διαίρεση συνεχίζεται επ' άπειρον{' '}
+              <span className="text-slate-600 text-xs font-normal">
+                (σταματήσαμε στα 3 δεκαδικά με υπόλοιπο {problem.finalRemainder} στο χιλιοστό)
+              </span>
+            </span>
+          ) : (
+            <span className="text-slate-800 font-semibold">
+              Τελικό Υπόλοιπο:{' '}
+              <strong className="font-mono-numbers text-base font-bold text-slate-900">
+                {problem.finalRemainder}
+              </strong>
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 };

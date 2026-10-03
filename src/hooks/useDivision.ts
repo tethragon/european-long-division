@@ -14,6 +14,11 @@ export interface FeedbackState {
   errorCount: number;
 }
 
+export interface GameModeInfo {
+  isActive: boolean;
+  isLastProblem?: boolean;
+}
+
 export function useDivision(initialDividend?: string, initialDivisor?: string) {
   const [level, setLevel] = useState<DifficultyLevel>('easy');
 
@@ -35,6 +40,12 @@ export function useDivision(initialDividend?: string, initialDivisor?: string) {
   // Μετρητής λαθών & υποδείξεων για την τρέχουσα άσκηση (για mastery level-up)
   const [sessionMistakes, setSessionMistakes] = useState<number>(0);
   const sessionMistakesRef = useRef<number>(0);
+
+  // Πληροφορίες Game Mode για προσαρμογή των μηνυμάτων ολοκλήρωσης
+  const gameModeInfoRef = useRef<GameModeInfo>({ isActive: false, isLastProblem: false });
+  const setGameModeInfo = useCallback((info: GameModeInfo) => {
+    gameModeInfoRef.current = info;
+  }, []);
 
   const registerMistake = useCallback(() => {
     sessionMistakesRef.current += 1;
@@ -555,6 +566,8 @@ export function useDivision(initialDividend?: string, initialDivisor?: string) {
         setActiveSubStep('completed');
         const mistakes = sessionMistakesRef.current;
         const isFlawless = mistakes === 0;
+        const isGame = gameModeInfoRef.current.isActive;
+        const isLastGameProb = !!gameModeInfoRef.current.isLastProblem;
 
         let completionMsg = '';
         if (problem.isExact) {
@@ -565,7 +578,20 @@ export function useDivision(initialDividend?: string, initialDivisor?: string) {
           completionMsg = `Συγχαρητήρια! Η διαίρεση ολοκληρώθηκε με πηλίκο ${problem.quotientStr} και υπόλοιπο ${problem.finalRemainder}!`;
         }
 
-        if (level !== 'custom') {
+        const mistakeWord = mistakes === 1 ? 'διόρθωση' : 'διορθώσεις';
+        const verb = mistakes === 1 ? 'Έγινε' : 'Έγιναν';
+
+        if (isGame) {
+          if (isFlawless) {
+            completionMsg += isLastGameProb
+              ? ` 🌟 Άριστα, κανένα λάθος (100%)! Πάτα «Δες τα Τελικά Αποτελέσματα» (ή πάτα Enter)!`
+              : ` 🌟 Άριστα, κανένα λάθος (100%)! Πάτα «Επόμενη Άσκηση» (ή πάτα Enter) για να συνεχίσεις!`;
+          } else {
+            completionMsg += isLastGameProb
+              ? ` (${verb} ${mistakes} ${mistakeWord}. Πάτα «Δες τα Τελικά Αποτελέσματα» για να ολοκληρώσεις το παιχνίδι).`
+              : ` (${verb} ${mistakes} ${mistakeWord}. Πάτα «Επόμενη Άσκηση» (ή πάτα Enter) για να συνεχίσεις το παιχνίδι).`;
+          }
+        } else if (level !== 'custom') {
           if (isFlawless) {
             if (currentTier < 2) {
               completionMsg += ` 🌟 Άριστα, κανένα λάθος! Πατώντας «Νέα Άσκηση» ξεκλειδώνεις τη Βαθμίδα ${currentTier + 2} (${'⭐'.repeat(currentTier + 2)})!`;
@@ -573,7 +599,7 @@ export function useDivision(initialDividend?: string, initialDivisor?: string) {
               completionMsg += ` 🏆 Άριστα! Κατέκτησες και την 3η Βαθμίδα (⭐⭐⭐) χωρίς κανένα λάθος!`;
             }
           } else {
-            completionMsg += ` (Έγιναν ${mistakes} ${mistakes === 1 ? 'διόρθωση' : 'διορθώσεις'}. Λύσε μία άσκηση χωρίς λάθη για να ανέβεις βαθμίδα).`;
+            completionMsg += ` (${verb} ${mistakes} ${mistakeWord}. Λύσε την επόμενη άσκηση χωρίς λάθη για να ανέβεις βαθμίδα).`;
           }
         }
 
@@ -755,6 +781,7 @@ export function useDivision(initialDividend?: string, initialDivisor?: string) {
     setShowMultiplesHelper,
     divisorMultiples,
     isCompleted,
+    setGameModeInfo,
     // Actions μετατόπισης δεκαδικών
     selectShiftMultiplier,
     setEnteredShiftDividend,
