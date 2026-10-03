@@ -76,7 +76,11 @@ export const DecimalShiftHelper: React.FC<DecimalShiftHelperProps> = ({
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-700 bg-indigo-100/80 px-2.5 py-1 rounded-lg">
             <span>Πολλαπλασιασμός</span>
-            <span className="font-mono-numbers">× {shiftInfo.shiftMultiplier}</span>
+            <span className={`font-mono-numbers ${!shiftUserState.isMultiplierValidated ? 'text-indigo-500 font-semibold' : ''}`}>
+              {shiftUserState.isMultiplierValidated && shiftUserState.selectedMultiplier
+                ? `× ${shiftUserState.selectedMultiplier.toLocaleString('el-GR')}`
+                : '× ?'}
+            </span>
           </div>
 
           <ArrowRight className="w-4 h-4 text-indigo-500 hidden sm:inline shrink-0" />
@@ -203,8 +207,8 @@ export const DecimalShiftHelper: React.FC<DecimalShiftHelperProps> = ({
                       divisorInputRef.current?.focus();
                     }
                   }}
-                  placeholder={shiftInfo.shiftedDividend}
-                  className="w-24 text-center font-mono-numbers font-bold text-base text-indigo-950 focus:outline-hidden"
+                  placeholder="?"
+                  className="w-24 text-center font-mono-numbers font-bold text-base text-indigo-950 focus:outline-hidden placeholder:text-slate-300"
                 />
               </div>
 
@@ -218,8 +222,8 @@ export const DecimalShiftHelper: React.FC<DecimalShiftHelperProps> = ({
                   type="text"
                   value={shiftUserState.enteredDivisor}
                   onChange={(e) => onEnteredDivisorChange(e.target.value)}
-                  placeholder={shiftInfo.shiftedDivisor}
-                  className="w-20 text-center font-mono-numbers font-bold text-base text-indigo-950 focus:outline-hidden"
+                  placeholder="?"
+                  className="w-20 text-center font-mono-numbers font-bold text-base text-indigo-950 focus:outline-hidden placeholder:text-slate-300"
                 />
               </div>
 
@@ -234,21 +238,6 @@ export const DecimalShiftHelper: React.FC<DecimalShiftHelperProps> = ({
               >
                 <span>Τοποθέτηση & Έναρξη</span>
                 <Check className="w-3.5 h-3.5" />
-              </button>
-
-              {/* Κουμπί Αυτόματης Συμπλήρωσης */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  onEnteredDividendChange(shiftInfo.shiftedDividend);
-                  onEnteredDivisorChange(shiftInfo.shiftedDivisor);
-                }}
-                className="px-3 py-2 text-xs font-semibold text-indigo-700 bg-indigo-100/80 hover:bg-indigo-200/90 rounded-xl transition-all flex items-center gap-1 cursor-pointer"
-                title="Αυτόματη συμπλήρωση των υπολογισμών"
-              >
-                <Sparkles className="w-3 h-3 text-indigo-600" />
-                <span>Αυτόματη Συμπλήρωση</span>
               </button>
             </form>
           </motion.div>
