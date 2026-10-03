@@ -167,7 +167,7 @@ export const DivisorQuotientCorner: React.FC<DivisorQuotientCornerProps> = ({
                       onFocus={() => setFocusedCellId(cellId)}
                       placeholder="?"
                       aria-label={`Ψηφίο πηλίκου βήματος ${idx + 1}`}
-                      className="w-8 h-8 md:w-9 md:h-9 text-center font-mono-numbers font-bold text-lg md:text-xl rounded-lg bg-white text-indigo-900 border-2 border-indigo-600 focus:outline-hidden focus:ring-3 focus:ring-indigo-300 shadow-sm transition-all"
+                      className="w-8 h-8 md:w-9 md:h-9 text-center font-mono-numbers font-bold text-lg md:text-xl rounded-lg bg-white text-indigo-900 border-2 border-indigo-600 focus:outline-hidden focus:ring-3 focus:ring-indigo-300 shadow-sm transition-all scroll-m-24"
                     />
                   ) : (
                     // Μελλοντικό κελί

@@ -18,9 +18,11 @@ import { GameHud } from './components/Game/GameHud';
 import { GameSetupModal } from './components/Game/GameSetupModal';
 import { GameCompletedModal } from './components/Game/GameCompletedModal';
 import { GameNextCard } from './components/Game/GameNextCard';
+import { useMobileKeyboardScroll } from './hooks/useMobileKeyboardScroll';
 import { BookOpen, Sparkles, Calculator, Award, GraduationCap, Info, Trophy } from 'lucide-react';
 
 export default function App() {
+  const { keyboardSpacer } = useMobileKeyboardScroll();
   const {
     problem,
     level,
@@ -118,10 +120,12 @@ export default function App() {
 
   // Καταγραφή ολοκλήρωσης άσκησης στο Game Mode
   const lastRecordedIndexRef = useRef<number | null>(null);
+  const hasSentFinalScormScoreRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!gameSession.isActive) {
       lastRecordedIndexRef.current = null;
+      hasSentFinalScormScoreRef.current = false;
       return;
     }
 
@@ -136,6 +140,45 @@ export default function App() {
     problem,
     sessionMistakes,
     recordProblemCompletion,
+  ]);
+
+  // 📡 Αυτόματη άμεση αποστολή βαθμολογίας στο eFront LMS μόλις ολοκληρωθεί
+  // η τελευταία άσκηση της πρόκλησης, ΧΩΡΙΣ να απαιτείται το πάτημα του κουμπιού
+  // "Δες τα Τελικά Αποτελέσματα" από τον μαθητή!
+  useEffect(() => {
+    if (!gameSession.isActive) return;
+
+    const allProblemsCompleted =
+      gameSession.results.length >= gameSession.settings.totalProblems &&
+      gameSession.results.length > 0;
+
+    if (allProblemsCompleted && !hasSentFinalScormScoreRef.current) {
+      hasSentFinalScormScoreRef.current = true;
+      try {
+        if (window.parent && window.parent !== window) {
+          const perfectCount = gameSession.results.filter((r) => r.scorePercent >= 80).length;
+          window.parent.postMessage(
+            {
+              type: 'MATH_DIVISION_GAME_COMPLETED',
+              score: Math.round(totalScorePercent),
+              passed: totalScorePercent >= 50,
+              totalProblems: gameSession.settings.totalProblems,
+              perfectCount,
+              scope: gameSession.settings.scope,
+            },
+            '*'
+          );
+        }
+      } catch {
+        // Safe cross-origin ignore
+      }
+    }
+  }, [
+    gameSession.isActive,
+    gameSession.results,
+    gameSession.settings.totalProblems,
+    gameSession.settings.scope,
+    totalScorePercent,
   ]);
 
   // Πληκτρολόγιο: Όταν ολοκληρωθεί μια άσκηση στο Game Mode, το πάτημα του Enter
@@ -395,6 +438,13 @@ export default function App() {
             </div>
           )}
         </div>
+
+        {/* Δυναμικό κενό κύλισης μόνο σε κινητά όταν ανοίγει το αριθμητικό πληκτρολόγιο */}
+        <div
+          aria-hidden="true"
+          style={{ height: keyboardSpacer > 0 ? `${keyboardSpacer}px` : 0 }}
+          className="transition-[height] duration-200 pointer-events-none w-full shrink-0"
+        />
 
         {/* Οδηγίες Χρήσης & Πληκτρολογίου */}
         <footer className="mt-auto pt-6 border-t border-slate-200/80 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-3">

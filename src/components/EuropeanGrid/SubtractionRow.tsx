@@ -176,7 +176,7 @@ export const SubtractionRow: React.FC<SubtractionRowProps> = ({
                     onKeyDown={(e) => handleProductKeyDown(e, digitIdx)}
                     onFocus={() => setFocusedCellId(cellId)}
                     placeholder="·"
-                    className="w-full h-full text-center font-bold text-lg md:text-xl rounded-lg bg-white text-indigo-950 border-2 border-indigo-600 focus:outline-hidden focus:ring-3 focus:ring-indigo-300 shadow-sm"
+                    className="w-full h-full text-center font-bold text-lg md:text-xl rounded-lg bg-white text-indigo-950 border-2 border-indigo-600 focus:outline-hidden focus:ring-3 focus:ring-indigo-300 shadow-sm scroll-m-24"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-300 rounded-lg bg-slate-50/50 border border-dashed border-slate-200">
@@ -258,7 +258,7 @@ export const SubtractionRow: React.FC<SubtractionRowProps> = ({
                     onKeyDown={(e) => handleRemainderKeyDown(e, digitIdx)}
                     onFocus={() => setFocusedCellId(cellId)}
                     placeholder="·"
-                    className="w-full h-full text-center font-bold text-lg md:text-xl rounded-lg bg-white text-indigo-950 border-2 border-indigo-600 focus:outline-hidden focus:ring-3 focus:ring-indigo-300 shadow-sm"
+                    className="w-full h-full text-center font-bold text-lg md:text-xl rounded-lg bg-white text-indigo-950 border-2 border-indigo-600 focus:outline-hidden focus:ring-3 focus:ring-indigo-300 shadow-sm scroll-m-24"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-300 rounded-lg bg-slate-50/50 border border-dashed border-slate-200">
