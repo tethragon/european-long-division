@@ -443,7 +443,7 @@ export default function App() {
         <div
           aria-hidden="true"
           style={{ height: keyboardSpacer > 0 ? `${keyboardSpacer}px` : 0 }}
-          className="transition-[height] duration-200 pointer-events-none w-full shrink-0"
+          className="pointer-events-none w-full shrink-0"
         />
 
         {/* Οδηγίες Χρήσης & Πληκτρολογίου */}

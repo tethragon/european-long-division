@@ -4,6 +4,11 @@
  * 
  * ΕΓΓΥΗΣΗ: Στον υπολογιστή (desktop/laptop με ποντίκι) δεν εκτελείται καμία ενέργεια
  * και δεν επηρεάζει απολύτως τίποτα.
+ * 
+ * Χαρακτηριστικά:
+ * - Single-shot scroll: Εξαλείφει πλήρως το διπλό / σπασμωδικό σκρολάρισμα.
+ * - Ακυρώνει τα περιττά timers μόλις το πληκτρολόγιο ανοίξει πλήρως (visualViewport).
+ * - Επαναφέρεται άμεσα μόλις ο μαθητής αλλάξει κελί ή κατεβάσει ψηφίο.
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -11,6 +16,8 @@ import { useState, useEffect, useRef } from 'react';
 export function useMobileKeyboardScroll() {
   const [keyboardSpacer, setKeyboardSpacer] = useState<number>(0);
   const blurTimerRef = useRef<number | null>(null);
+  const fallbackScrollTimerRef = useRef<number | null>(null);
+  const lastScrolledElementRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     // Έλεγχος αν η συσκευή είναι κινητό / οθόνη αφής
@@ -25,20 +32,31 @@ export function useMobileKeyboardScroll() {
       return;
     }
 
-    const scrollIntoSmartView = (el: HTMLElement, delay = 260) => {
+    const executeScrollOnce = (el: HTMLElement) => {
       if (!el || !isMobileDevice()) return;
 
-      setTimeout(() => {
-        try {
-          el.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-            inline: 'nearest',
-          });
-        } catch {
-          el.scrollIntoView(true);
-        }
-      }, delay);
+      // Αν έχουμε ήδη κάνει scroll για αυτό ακριβώς το στοιχείο σε αυτή την εστίαση, αγνοούμε
+      if (lastScrolledElementRef.current === el) {
+        return;
+      }
+
+      lastScrolledElementRef.current = el;
+
+      // Ακυρώνουμε τυχόν εκκρεμή fallback timers
+      if (fallbackScrollTimerRef.current) {
+        window.clearTimeout(fallbackScrollTimerRef.current);
+        fallbackScrollTimerRef.current = null;
+      }
+
+      try {
+        el.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'nearest',
+        });
+      } catch {
+        el.scrollIntoView(true);
+      }
     };
 
     // 1. Ακρόαση όταν ένα input παίρνει focus
@@ -55,17 +73,26 @@ export function useMobileKeyboardScroll() {
         blurTimerRef.current = null;
       }
 
-      // Προσθήκη ασφαλούς κενού στο κάτω μέρος για να έχει περιθώριο κύλισης η σελίδα
-      // ακόμη κι αν το κελί είναι πολύ χαμηλά στον πίνακα
+      // Αν αλλάξαμε κελί, επιτρέπουμε νέο μοναδικό scroll
+      if (lastScrolledElementRef.current !== target) {
+        lastScrolledElementRef.current = null;
+      }
+
+      // Άμεση δημιουργία κενού στο κάτω μέρος ώστε να μπορεί να σκρολάρει άνετα
       const approxKeyboardHeight = Math.min(340, Math.round(window.innerHeight * 0.44));
       setKeyboardSpacer(approxKeyboardHeight);
 
-      // Scroll στο κέντρο του ορατού χώρου
-      scrollIntoSmartView(target, 280);
+      // Fallback timer (300ms) ΜΟΝΟ αν για κάποιο λόγο δεν πυροδοτηθεί το visualViewport resize
+      if (fallbackScrollTimerRef.current) {
+        window.clearTimeout(fallbackScrollTimerRef.current);
+      }
+      fallbackScrollTimerRef.current = window.setTimeout(() => {
+        executeScrollOnce(target);
+      }, 300);
     };
 
     // 2. Ακρόαση όταν φεύγει το focus (blur)
-    const handleFocusOut = (e: FocusEvent) => {
+    const handleFocusOut = () => {
       if (!isMobileDevice()) return;
 
       // Μικρή καθυστέρηση για την περίπτωση που ο μαθητής πάει αμέσως στο επόμενο κελί
@@ -74,11 +101,13 @@ export function useMobileKeyboardScroll() {
         const stillInInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
         if (!stillInInput) {
           setKeyboardSpacer(0);
+          lastScrolledElementRef.current = null;
         }
       }, 150);
     };
 
-    // 3. Σύγχρονη υποστήριξη Window VisualViewport API (iOS Safari & Android Chrome)
+    // 3. Σύγχρονη υποστήριξη Window VisualViewport API (Android / POCO & iOS Safari)
+    // Αυτό είναι το απόλυτα ακριβές συμβάν όταν το πληκτρολόγιο έχει ολοκληρώσει το άνοιγμα!
     const visualViewport = window.visualViewport;
     const handleViewportResize = () => {
       if (!isMobileDevice() || !visualViewport) return;
@@ -88,11 +117,13 @@ export function useMobileKeyboardScroll() {
       const diff = windowH - viewportH;
 
       if (diff > 120) {
-        // Το εικονικό πληκτρολόγιο είναι ανοιχτό
-        setKeyboardSpacer(Math.round(diff + 24));
+        // Το πληκτρολόγιο είναι ορατό: ρυθμίζουμε το ακριβές κενό
+        setKeyboardSpacer(Math.round(diff + 20));
+
         const active = document.activeElement as HTMLElement | null;
         if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
-          scrollIntoSmartView(active, 80);
+          // Εκτελούμε το ΜΟΝΑΔΙΚΟ οριστικό scroll
+          executeScrollOnce(active);
         }
       } else {
         // Το πληκτρολόγιο έκλεισε
@@ -100,6 +131,7 @@ export function useMobileKeyboardScroll() {
         const stillInInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
         if (!stillInInput) {
           setKeyboardSpacer(0);
+          lastScrolledElementRef.current = null;
         }
       }
     };
@@ -119,6 +151,9 @@ export function useMobileKeyboardScroll() {
       }
       if (blurTimerRef.current) {
         window.clearTimeout(blurTimerRef.current);
+      }
+      if (fallbackScrollTimerRef.current) {
+        window.clearTimeout(fallbackScrollTimerRef.current);
       }
     };
   }, []);
