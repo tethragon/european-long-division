@@ -112,7 +112,7 @@ export const DecimalShiftHelper: React.FC<DecimalShiftHelperProps> = ({
             <div className="text-xs md:text-sm text-slate-700">
               <span className="font-bold text-indigo-950">Βήμα 1ο: </span>
               Ο διαιρέτης <strong className="font-mono-numbers text-indigo-900 bg-white px-1.5 py-0.5 rounded border border-indigo-200">{shiftInfo.originalDivisor}</strong> έχει{' '}
-              <strong>{decimalCount} δεκαδικό{decimalCount > 1 ? 'α' : 'ο'} ψηφί{decimalCount > 1 ? 'α' : 'ο'}</strong>.
+              <strong>{decimalCount} {decimalCount === 1 ? 'δεκαδικό ψηφίο' : 'δεκαδικά ψηφία'}</strong>.
               Για να γίνει ακέραιος, με τι πρέπει να πολλαπλασιάσουμε και τους δύο αριθμούς;
             </div>
 
@@ -180,7 +180,7 @@ export const DecimalShiftHelper: React.FC<DecimalShiftHelperProps> = ({
           >
             <div className="text-xs md:text-sm text-slate-700">
               <span className="font-bold text-indigo-950">Βήμα 2ο: </span>
-              Σωστά! Πολλαπλασιάζουμε με το <strong>× {shiftUserState.selectedMultiplier}</strong> (μετακίνηση υποδιαστολής κατά {decimalCount} θέση προς τα δεξιά).
+              Σωστά! Πολλαπλασιάζουμε με το <strong>× {shiftUserState.selectedMultiplier}</strong> (μετακίνηση υποδιαστολής κατά {decimalCount} {decimalCount === 1 ? 'θέση' : 'θέσεις'} προς τα δεξιά).
               Πληκτρολόγησε τον νέο Διαιρετέο και τον νέο Διαιρέτη για να τοποθετηθούν στα κελιά:
             </div>
 
