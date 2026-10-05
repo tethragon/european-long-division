@@ -9,7 +9,7 @@ import { X, Info, GraduationCap, Sparkles, CheckCircle2 } from 'lucide-react';
 // 📌 ΡΥΘΜΙΣΗ ΣΤΟΙΧΕΙΩΝ ΕΚΔΟΣΗΣ & ΔΗΜΙΟΥΡΓΟΥ (APP VERSION & ARCHITECT CONFIG)
 // Μπορείτε να αλλάξετε εύκολα τον αριθμό έκδοσης ή το όνομα παρακάτω:
 // ============================================================================
-export const APP_VERSION = 'v. 0.7'; // <-- 👈 ΑΛΛΑΞΤΕ ΤΗΝ ΕΚΔΟΣΗ ΕΔΩ (π.χ. 'v. 0.2', 'v. 1.0')
+export const APP_VERSION = 'v. 0.8'; // <-- 👈 ΑΛΛΑΞΤΕ ΤΗΝ ΕΚΔΟΣΗ ΕΔΩ (π.χ. 'v. 0.2', 'v. 1.0')
 export const PROGRAM_ARCHITECT = 'George Petrakis';
 // ============================================================================
 

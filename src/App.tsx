@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useDivision } from './hooks/useDivision';
 import { useGameMode } from './hooks/useGameMode';
 import { DivisionBoard } from './components/EuropeanGrid/DivisionBoard';
@@ -26,6 +26,7 @@ export default function App() {
   const {
     problem,
     level,
+    setLevel,
     currentTier,
     sessionMistakes,
     dividendInput,
@@ -64,13 +65,29 @@ export default function App() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isGameSetupModalOpen, setIsGameSetupModalOpen] = useState(false);
 
-  // Cheat Code (Testing): 5 συνεχόμενα πατήματα του πλήκτρου '*' λύνουν αμέσως και ορθά τη διαίρεση
+  // Cheat Code (Testing): 5 συνεχόμενα πατήματα του πλήκτρου '*' (ή 5 γρήγορα taps στο λογότυπο)
+  // λύνουν αμέσως και ορθά τη διαίρεση σε ΟΛΑ τα modes (Game Mode, Εξάσκηση & Δική μου Άσκηση).
   const starPressCountRef = useRef<number>(0);
   const starPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const triggerInstantSolve = useCallback(() => {
+    instantSolveCurrent();
+  }, [instantSolveCurrent]);
+
   useEffect(() => {
     const handleKeyDownStar = (e: KeyboardEvent) => {
-      if (e.key === '*') {
+      // Δεν ενεργοποιείται όταν κάποιο παράθυρο (modal) είναι ανοιχτό
+      if (isCustomModalOpen || isTheoryModalOpen || isInfoModalOpen || isGameSetupModalOpen) {
+        return;
+      }
+
+      const isStarKey =
+        e.key === '*' ||
+        e.key === 'Multiply' ||
+        e.code === 'NumpadMultiply' ||
+        e.keyCode === 106;
+
+      if (isStarKey) {
         e.preventDefault();
         e.stopPropagation();
 
@@ -81,7 +98,7 @@ export default function App() {
 
         if (starPressCountRef.current >= 5) {
           starPressCountRef.current = 0;
-          instantSolveCurrent();
+          triggerInstantSolve();
         } else {
           starPressTimerRef.current = setTimeout(() => {
             starPressCountRef.current = 0;
@@ -97,7 +114,36 @@ export default function App() {
         clearTimeout(starPressTimerRef.current);
       }
     };
-  }, [instantSolveCurrent]);
+  }, [
+    triggerInstantSolve,
+    isCustomModalOpen,
+    isTheoryModalOpen,
+    isInfoModalOpen,
+    isGameSetupModalOpen,
+  ]);
+
+  // Υποστήριξη και για οθόνες αφής/κινητά (όπου δεν υπάρχει πλήκτρο *):
+  // 5 γρήγορα taps στο λογότυπο του καπέλου (Top Bar) ενεργοποιούν επίσης την αυτόματη επίλυση
+  const logoTapCountRef = useRef<number>(0);
+  const logoTapTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleLogoTap = () => {
+    if (isCustomModalOpen || isTheoryModalOpen || isInfoModalOpen || isGameSetupModalOpen) return;
+
+    logoTapCountRef.current += 1;
+    if (logoTapTimerRef.current) {
+      clearTimeout(logoTapTimerRef.current);
+    }
+
+    if (logoTapCountRef.current >= 5) {
+      logoTapCountRef.current = 0;
+      triggerInstantSolve();
+    } else {
+      logoTapTimerRef.current = setTimeout(() => {
+        logoTapCountRef.current = 0;
+      }, 2000);
+    }
+  };
 
   // Hook διαχείρισης Game Mode
   const {
@@ -181,10 +227,10 @@ export default function App() {
     totalScorePercent,
   ]);
 
-  // Πληκτρολόγιο: Όταν ολοκληρωθεί μια άσκηση στο Game Mode, το πάτημα του Enter
-  // προχωράει στην επόμενη άσκηση (ή ανοίγει τα τελικά αποτελέσματα)
+  // Πληκτρολόγιο: Όταν ολοκληρωθεί μια άσκηση (σε Game Mode, Εξάσκηση ή Δική μου Άσκηση),
+  // το πάτημα του Enter προχωράει στην επόμενη άσκηση (ή ανοίγει την εισαγωγή νέας διαίρεσης)
   useEffect(() => {
-    if (!gameSession.isActive || !isCompleted) return;
+    if (!isCompleted) return;
 
     let canTrigger = false;
     const timer = setTimeout(() => {
@@ -205,7 +251,13 @@ export default function App() {
 
       if (e.key === 'Enter') {
         e.preventDefault();
-        advanceToNextProblem(level, loadProblem);
+        if (gameSession.isActive) {
+          advanceToNextProblem(level, loadProblem);
+        } else if (level === 'custom') {
+          setIsCustomModalOpen(true);
+        } else {
+          selectLevelAndGenerate(level);
+        }
       }
     };
 
@@ -223,6 +275,7 @@ export default function App() {
     isGameSetupModalOpen,
     gameSession.isFinished,
     advanceToNextProblem,
+    selectLevelAndGenerate,
     level,
     loadProblem,
   ]);
@@ -262,7 +315,11 @@ export default function App() {
       {/* 1. TOP BAR (Strict 3-zone Top Bar Contract) */}
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-xs border-b border-slate-200 px-4 md:px-8 py-3.5 flex items-center justify-between">
         {/* Zone 1: Brand title wordmark */}
-        <div className="flex items-center gap-2">
+        <div
+          onClick={handleLogoTap}
+          className="flex items-center gap-2 cursor-pointer select-none active:opacity-80 transition-opacity"
+          title="Κάθετη Διαίρεση"
+        >
           <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
             <GraduationCap className="w-5 h-5" />
           </div>
@@ -391,7 +448,13 @@ export default function App() {
           ) : (
             <VerificationCard
               problem={problem}
-              onNextProblem={() => selectLevelAndGenerate(level)}
+              onNextProblem={() => {
+                if (level === 'custom') {
+                  setIsCustomModalOpen(true);
+                } else {
+                  selectLevelAndGenerate(level);
+                }
+              }}
             />
           )
         )}
@@ -478,7 +541,10 @@ export default function App() {
       <CustomProblemModal
         isOpen={isCustomModalOpen}
         onClose={() => setIsCustomModalOpen(false)}
-        onSubmit={loadProblem}
+        onSubmit={(dividend, divisor) => {
+          setLevel('custom');
+          loadProblem(dividend, divisor);
+        }}
         initialDividend={dividendInput}
         initialDivisor={divisorInput}
       />

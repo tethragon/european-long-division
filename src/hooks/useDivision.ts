@@ -743,11 +743,35 @@ export function useDivision(initialDividend?: string, initialDivisor?: string) {
       }))
     );
 
-    setActiveStepIndex(problem.steps.length - 1);
+    setActiveStepIndex(Math.max(0, problem.steps.length - 1));
     setActiveSubStep('completed');
+    setFocusedCellId(null);
+    if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
+    let completionMsg = '';
+    if (problem.isExact) {
+      completionMsg = `Συγχαρητήρια! Η διαίρεση ολοκληρώθηκε τέλεια με πηλίκο ${problem.quotientStr} και υπόλοιπο 0!`;
+    } else if (problem.maxDecimalReached || problem.quotientStr.includes(',')) {
+      completionMsg = `Μπράβο! Η διαίρεση δεν τελειώνει (περιοδική) — ολοκληρώθηκε με προσέγγιση 3 δεκαδικών: πηλίκο ≈ ${problem.quotientStr}!`;
+    } else {
+      completionMsg = `Συγχαρητήρια! Η διαίρεση ολοκληρώθηκε με πηλίκο ${problem.quotientStr} και υπόλοιπο ${problem.finalRemainder}!`;
+    }
+
+    const isGame = gameModeInfoRef.current.isActive;
+    const isLastGameProb = !!gameModeInfoRef.current.isLastProblem;
+    if (isGame) {
+      completionMsg += isLastGameProb
+        ? ' 🌟 Πάτα «Δες τα Τελικά Αποτελέσματα» (ή πάτα Enter)!'
+        : ' 🌟 Πάτα «Επόμενη Άσκηση» (ή πάτα Enter) για να συνεχίσεις!';
+    } else {
+      completionMsg += ' 🌟 Πάτα «Επόμενη Διαίρεση» (ή πάτα Enter)!';
+    }
+
     setFeedback({
       status: 'success',
-      message: '✨ Cheat Testing: Η διαίρεση συμπληρώθηκε αυτόματα και ορθά!',
+      message: `✨ Αυτόματη Επίλυση: ${completionMsg}`,
       errorCount: 0,
     });
   }, [problem]);
@@ -764,6 +788,7 @@ export function useDivision(initialDividend?: string, initialDivisor?: string) {
   return {
     problem,
     level,
+    setLevel,
     currentTier,
     sessionMistakes,
     dividendInput,
