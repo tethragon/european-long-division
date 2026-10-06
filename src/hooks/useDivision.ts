@@ -459,6 +459,147 @@ export function useDivision(initialDividend?: string, initialDivisor?: string) {
 
     const expectedDigit = currentStep.quotientDigit.toString();
     if (currentInput === expectedDigit) {
+      if (!currentStep.hasSubtraction) {
+        // Περίπτωση αρχικού μηδενικού (π.χ. στο 0,012 : 5 ή 3,5 : 7):
+        // Δεν κατεβαίνουμε σε από κάτω γραμμή, η αγκύλη στον αρχικό διαιρετέο μεγαλώνει
+        // για να συμπεριλάβει το επόμενο ψηφίο και μεταβαίνουμε αμέσως στο επόμενο ψηφίο πηλίκου!
+        setStepStates(prev => {
+          const next = [...prev];
+          next[activeStepIndex] = {
+            ...next[activeStepIndex],
+            isQuotientValidated: true,
+            isProductValidated: true,
+            isRemainderValidated: true,
+            productDigits: ['0'],
+            remainderDigits: currentStep.remainderDigitsStr.split(''),
+            isBroughtDown: true,
+          };
+          return next;
+        });
+
+        const nextIndex = activeStepIndex + 1;
+        if (nextIndex < problem.steps.length) {
+          setActiveStepIndex(nextIndex);
+          setActiveSubStep('quotient');
+          const nextStepObj = problem.steps[nextIndex];
+          const baseDigitsCount = (problem.baseDividendStr || problem.effectiveDividendStr).replace(/,/g, '').length;
+          const isZeroAppended = nextStepObj.chunkEndIndex >= baseDigitsCount;
+
+          if (isZeroAppended) {
+            setFeedback({
+              status: 'success',
+              message: `Μπράβο! Σωστά, χωράει 0 φορές. Επειδή εξαντλήθηκαν τα ψηφία του διαιρετέου, προστέθηκε 0 στον διαιρετέο! Η αγκύλη αγκαλιάζει το ${nextStepObj.chunkDigitsStr.split('').join(', ')} (${nextStepObj.currentChunk}). Τώρα πόσες φορές χωράει το ${problem.effectiveDivisor} στο ${nextStepObj.currentChunk};`,
+              errorCount: 0,
+            });
+          } else {
+            setFeedback({
+              status: 'success',
+              message: `Μπράβο! Σωστά, χωράει 0 φορές. Η αγκύλη στον διαιρετέο μεγαλώνει! Τώρα πόσες φορές χωράει το ${problem.effectiveDivisor} στο ${nextStepObj.currentChunk};`,
+              errorCount: 0,
+            });
+          }
+          setFocusedCellId(`quotient-${nextIndex}`);
+        } else {
+          setActiveSubStep('completed');
+          const mistakes = sessionMistakesRef.current;
+          const isFlawless = mistakes === 0;
+          const isGame = gameModeInfoRef.current.isActive;
+          const isLastGameProb = !!gameModeInfoRef.current.isLastProblem;
+
+          let completionMsg = '';
+          if (problem.isExact) {
+            completionMsg = `Συγχαρητήρια! Η διαίρεση ολοκληρώθηκε τέλεια με πηλίκο ${problem.quotientStr} και υπόλοιπο 0!`;
+          } else if (problem.maxDecimalReached) {
+            completionMsg = `Μπράβο! Η διαίρεση συνεχίζεται επ' άπειρον (περιοδική) — ολοκληρώθηκε με προσέγγιση 3 δεκαδικών: πηλίκο ≈ ${problem.quotientStr}!`;
+          } else {
+            completionMsg = `Συγχαρητήρια! Η διαίρεση ολοκληρώθηκε με πηλίκο ${problem.quotientStr} και υπόλοιπο ${problem.finalRemainder}!`;
+          }
+
+          if (isGame) {
+            completionMsg += isFlawless
+              ? (isLastGameProb ? ' 🌟 Άριστα, κανένα λάθος (100%)! Πάτα «Δες τα Τελικά Αποτελέσματα» (ή πάτα Enter)!' : ' 🌟 Άριστα, κανένα λάθος (100%)! Πάτα «Επόμενη Άσκηση» (ή πάτα Enter) για να συνεχίσεις!')
+              : (isLastGameProb ? ` (Πάτα «Δες τα Τελικά Αποτελέσματα»).` : ` (Πάτα «Επόμενη Άσκηση» ή Enter).`);
+          }
+
+          setFeedback({
+            status: 'success',
+            message: completionMsg,
+            errorCount: 0,
+          });
+          setFocusedCellId(null);
+        }
+        return;
+      }
+
+      if (currentStep.quotientDigit === 0) {
+        // Παράκαμψη βήματος αφαίρεσης & μερικού υπολοίπου όταν μπαίνει 0 στο πηλίκο
+        setStepStates(prev => {
+          const next = [...prev];
+          next[activeStepIndex] = {
+            ...next[activeStepIndex],
+            isQuotientValidated: true,
+            isProductValidated: true,
+            isRemainderValidated: true,
+            productDigits: currentStep.productDigitsStr.split(''),
+            remainderDigits: currentStep.remainderDigitsStr.split(''),
+          };
+          return next;
+        });
+
+        if (currentStep.broughtDownDigit !== null) {
+          setActiveSubStep('bring_down');
+          setFeedback({
+            status: 'success',
+            message: currentStep.isBroughtDownZero
+              ? 'Σωστά! Βάζουμε 0 στο πηλίκο. Πάτα «Κατέβασε ψηφίο» (ή Enter) για να προστεθεί 0 και να συνεχιστεί η διαίρεση.'
+              : `Σωστά! Βάζουμε 0 στο πηλίκο. Πάτα «Κατέβασε ψηφίο» (ή Enter) για να κατέβει το ${currentStep.broughtDownDigit}!`,
+            errorCount: 0,
+          });
+          setFocusedCellId(null);
+        } else {
+          // Τελικό βήμα χωρίς ψηφίο για κατέβασμα
+          setActiveSubStep('completed');
+          const mistakes = sessionMistakesRef.current;
+          const isFlawless = mistakes === 0;
+          const isGame = gameModeInfoRef.current.isActive;
+          const isLastGameProb = !!gameModeInfoRef.current.isLastProblem;
+
+          let completionMsg = '';
+          if (problem.isExact) {
+            completionMsg = `Συγχαρητήρια! Η διαίρεση ολοκληρώθηκε τέλεια με πηλίκο ${problem.quotientStr} και υπόλοιπο 0!`;
+          } else if (problem.maxDecimalReached) {
+            completionMsg = `Μπράβο! Η διαίρεση συνεχίζεται επ' άπειρον (περιοδική) — ολοκληρώθηκε με προσέγγιση 3 δεκαδικών: πηλίκο ≈ ${problem.quotientStr}!`;
+          } else {
+            completionMsg = `Συγχαρητήρια! Η διαίρεση ολοκληρώθηκε με πηλίκο ${problem.quotientStr} και υπόλοιπο ${problem.finalRemainder}!`;
+          }
+
+          const mistakeWord = mistakes === 1 ? 'διόρθωση' : 'διορθώσεις';
+          const verb = mistakes === 1 ? 'Έγινε' : 'Έγιναν';
+
+          if (isGame) {
+            completionMsg += isFlawless
+              ? (isLastGameProb ? ' 🌟 Άριστα, κανένα λάθος (100%)! Πάτα «Δες τα Τελικά Αποτελέσματα» (ή πάτα Enter)!' : ' 🌟 Άριστα, κανένα λάθος (100%)! Πάτα «Επόμενη Άσκηση» (ή πάτα Enter) για να συνεχίσεις!')
+              : (isLastGameProb ? ` (${verb} ${mistakes} ${mistakeWord}. Πάτα «Δες τα Τελικά Αποτελέσματα»).` : ` (${verb} ${mistakes} ${mistakeWord}. Πάτα «Επόμενη Άσκηση» ή Enter).`);
+          } else if (level !== 'custom') {
+            if (isFlawless) {
+              completionMsg += currentTier < 2
+                ? ` 🌟 Άριστα, κανένα λάθος! Πατώντας «Νέα Άσκηση» ξεκλειδώνεις τη Βαθμίδα ${currentTier + 2} (${'⭐'.repeat(currentTier + 2)})!`
+                : ` 🏆 Άριστα! Κατέκτησες και την 3η Βαθμίδα (⭐⭐⭐) χωρίς κανένα λάθος!`;
+            } else {
+              completionMsg += ` (${verb} ${mistakes} ${mistakeWord}. Λύσε την επόμενη άσκηση χωρίς λάθη για να ανέβεις βαθμίδα).`;
+            }
+          }
+
+          setFeedback({
+            status: 'success',
+            message: completionMsg,
+            errorCount: 0,
+          });
+          setFocusedCellId(null);
+        }
+        return;
+      }
+
       setStepStates(prev => {
         const next = [...prev];
         next[activeStepIndex] = { ...next[activeStepIndex], isQuotientValidated: true };
@@ -572,8 +713,8 @@ export function useDivision(initialDividend?: string, initialDivisor?: string) {
         let completionMsg = '';
         if (problem.isExact) {
           completionMsg = `Συγχαρητήρια! Η διαίρεση ολοκληρώθηκε τέλεια με πηλίκο ${problem.quotientStr} και υπόλοιπο 0!`;
-        } else if (problem.maxDecimalReached || problem.quotientStr.includes(',')) {
-          completionMsg = `Μπράβο! Η διαίρεση δεν τελειώνει (περιοδική) — ολοκληρώθηκε με προσέγγιση 3 δεκαδικών: πηλίκο ≈ ${problem.quotientStr}!`;
+        } else if (problem.maxDecimalReached) {
+          completionMsg = `Μπράβο! Η διαίρεση συνεχίζεται επ' άπειρον (περιοδική) — ολοκληρώθηκε με προσέγγιση 3 δεκαδικών: πηλίκο ≈ ${problem.quotientStr}!`;
         } else {
           completionMsg = `Συγχαρητήρια! Η διαίρεση ολοκληρώθηκε με πηλίκο ${problem.quotientStr} και υπόλοιπο ${problem.finalRemainder}!`;
         }
@@ -753,8 +894,8 @@ export function useDivision(initialDividend?: string, initialDivisor?: string) {
     let completionMsg = '';
     if (problem.isExact) {
       completionMsg = `Συγχαρητήρια! Η διαίρεση ολοκληρώθηκε τέλεια με πηλίκο ${problem.quotientStr} και υπόλοιπο 0!`;
-    } else if (problem.maxDecimalReached || problem.quotientStr.includes(',')) {
-      completionMsg = `Μπράβο! Η διαίρεση δεν τελειώνει (περιοδική) — ολοκληρώθηκε με προσέγγιση 3 δεκαδικών: πηλίκο ≈ ${problem.quotientStr}!`;
+    } else if (problem.maxDecimalReached) {
+      completionMsg = `Μπράβο! Η διαίρεση συνεχίζεται επ' άπειρον (περιοδική) — ολοκληρώθηκε με προσέγγιση 3 δεκαδικών: πηλίκο ≈ ${problem.quotientStr}!`;
     } else {
       completionMsg = `Συγχαρητήρια! Η διαίρεση ολοκληρώθηκε με πηλίκο ${problem.quotientStr} και υπόλοιπο ${problem.finalRemainder}!`;
     }

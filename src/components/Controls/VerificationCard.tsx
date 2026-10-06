@@ -21,8 +21,8 @@ export const VerificationCard: React.FC<VerificationCardProps> = ({
   onNextProblem,
 }) => {
   const isExact = problem.isExact;
-  // Μη περατούμενη δεκαδική διαίρεση (περιοδική ή σταμάτησε στα 3 δεκαδικά με υπόλοιπο)
-  const isNonTerminating = !isExact && (problem.maxDecimalReached || problem.quotientStr.includes(','));
+  // Μη περατούμενη δεκαδική διαίρεση (περιοδική που συνεχίζεται επ' άπειρον)
+  const isNonTerminating = !isExact && problem.maxDecimalReached;
   const isIntegerWithRemainder = !isExact && !isNonTerminating;
 
   // Υπολογισμός γινομένου για παιδαγωγικό έλεγχο στις μη περατούμενες διαιρέσεις

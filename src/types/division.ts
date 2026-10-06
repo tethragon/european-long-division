@@ -67,6 +67,11 @@ export interface DivisionStep {
   // columnEndIndex: σε ποια στήλη του διαιρετέου στοιχίζεται το δεξιότερο ψηφίο
   columnEndIndex: number;
   
+  // Ένδειξη αν αυτό το βήμα περιλαμβάνει αφαίρεση (γραμμή αφαίρεσης/υπολοίπου κάτω από τον διαιρετέο).
+  // Τα αρχικά μηδενικά πριν την πρώτη αφαίρεση (όπως στο 0,012 : 5) απλώς μεγαλώνουν την αγκύλη
+  // στον αρχικό διαιρετέο χωρίς να κατεβαίνουν σε από κάτω γραμμή (hasSubtraction = false).
+  hasSubtraction: boolean;
+  
   // Επεξηγήσεις για τον μαθητή
   hints: {
     quotientPrompt: string;      // π.χ. "Πόσες φορές χωράει το 25 στο 87;"
@@ -91,6 +96,7 @@ export interface DivisionProblem {
   id: string;
   originalDividendStr: string;
   originalDivisorStr: string;
+  baseDividendStr?: string; // Ο διαιρετέος πριν από τυχόν προσθήκη μηδενικών για σχηματισμό αρχικού τμήματος
   effectiveDividendStr: string;
   effectiveDivisor: number;
   dividendDecimalIndex: number | null; // Θέση της υποδιαστολής στο effectiveDividendStr
@@ -100,6 +106,7 @@ export interface DivisionProblem {
   finalRemainder: number;
   isExact: boolean;
   maxDecimalReached: boolean;
+  isTerminating?: boolean;
 }
 
 export interface UserInputStepState {

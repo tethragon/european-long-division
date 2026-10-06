@@ -2,7 +2,7 @@
  * Παράθυρο (Modal) για εισαγωγή προσαρμοσμένης διαίρεσης (Custom Dividend & Divisor)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Play, Calculator } from 'lucide-react';
 import { validateAndNormalizeNumber } from '../../engine/divisionEngine';
 
@@ -24,6 +24,15 @@ export const CustomProblemModal: React.FC<CustomProblemModalProps> = ({
   const [dividend, setDividend] = useState(initialDividend);
   const [divisor, setDivisor] = useState(initialDivisor);
   const [error, setError] = useState<string | null>(null);
+
+  // Συγχρονισμός τιμών όταν ανοίγει το παράθυρο
+  useEffect(() => {
+    if (isOpen) {
+      setDividend(initialDividend);
+      setDivisor(initialDivisor);
+      setError(null);
+    }
+  }, [isOpen, initialDividend, initialDivisor]);
 
   if (!isOpen) return null;
 
@@ -48,6 +57,9 @@ export const CustomProblemModal: React.FC<CustomProblemModalProps> = ({
     }
 
     setError(null);
+    if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     onSubmit(divCheck.normalized, disCheck.normalized);
     onClose();
   };

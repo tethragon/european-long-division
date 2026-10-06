@@ -66,6 +66,31 @@ export const DivisionBoard: React.FC<DivisionBoardProps> = ({
 
   const isShiftPending = problem.shiftInfo.wasShifted && !shiftUserState.isShiftValidated;
 
+  // Ο διαιρετέος εμφανίζει αρχικά τα βασικά ψηφία του baseDividendStr (π.χ. 0,024).
+  // Όταν ένα βήμα απαιτήσει προσθήκη μηδενικού (όπως το 0,0240 στο 4ο βήμα του 0,024 : 40)
+  // ή όταν ολοκληρωθεί η άσκηση, αποκαλύπτονται δυναμικά τα προστιθέμενα μηδενικά!
+  const baseDigitsCount = (problem.baseDividendStr || problem.effectiveDividendStr).replace(/,/g, '').length;
+  const revealedDigitsCount = isFinished
+    ? numDividendDigits
+    : Math.max(baseDigitsCount, (currentStep ? currentStep.chunkEndIndex + 1 : baseDigitsCount));
+
+  const getRevealedDividend = (fullStr: string, count: number): string => {
+    const parts = fullStr.split(',');
+    const intPart = parts[0] || '0';
+    const decPart = parts[1] || '';
+    if (intPart.length >= count) {
+      return intPart.slice(0, count);
+    }
+    const decDigitsNeeded = count - intPart.length;
+    return `${intPart},${decPart.slice(0, decDigitsNeeded)}`;
+  };
+
+  const currentDividendStr = isShiftPending
+    ? activeSubStep === 'shift_multiplier'
+      ? Array.from({ length: problem.shiftInfo.shiftedDividend.replace(/,/g, '').length }, () => '?').join('')
+      : (shiftUserState.enteredDividend || Array.from({ length: problem.shiftInfo.shiftedDividend.replace(/,/g, '').length }, () => '?').join(''))
+    : getRevealedDividend(problem.effectiveDividendStr, revealedDigitsCount);
+
   return (
     <div className="w-full bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 md:p-6 overflow-x-auto">
       {/* 1. ΕΜΦΑΝΙΣΗ ΑΡΧΙΚΗΣ ΔΙΑΙΡΕΣΗΣ & ΔΙΑΔΡΑΣΤΙΚΗ ΜΕΤΑΤΡΟΠΗ (αν ο διαιρέτης είναι δεκαδικός) */}
@@ -97,17 +122,12 @@ export const DivisionBoard: React.FC<DivisionBoardProps> = ({
           {/* 1. Γραμμή Διαιρετέου (στην ίδια ακριβώς οριζόντια ευθεία με τον Διαιρέτη) */}
           <div className="flex items-center">
             <DividendRow
-              dividendStr={
-                isShiftPending
-                  ? activeSubStep === 'shift_multiplier'
-                    ? Array.from({ length: problem.shiftInfo.shiftedDividend.replace(/,/g, '').length }, () => '?').join('')
-                    : (shiftUserState.enteredDividend || Array.from({ length: problem.shiftInfo.shiftedDividend.replace(/,/g, '').length }, () => '?').join(''))
-                  : problem.effectiveDividendStr
-              }
+              dividendStr={currentDividendStr}
               activeChunkStart={currentStep?.chunkStartIndex}
               activeChunkEnd={currentStep?.chunkEndIndex}
               highlightActive={!isFinished && !isShiftPending}
               totalCols={totalCols}
+              baseDigitsCount={baseDigitsCount}
             />
           </div>
 

@@ -34,13 +34,31 @@ export const DivisorQuotientCorner: React.FC<DivisorQuotientCornerProps> = ({
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-focus στο ενεργό κελί πηλίκου όταν είναι η σειρά του
+  // Auto-focus στο ενεργό κελί πηλίκου όταν είναι η σειρά του ή όταν φορτώνεται νέο πρόβλημα
   useEffect(() => {
-    if (activeSubStep === 'quotient' && focusedCellId === `quotient-${activeStepIndex}`) {
-      inputRef.current?.focus();
-      inputRef.current?.select();
+    if (activeSubStep === 'quotient' && (!focusedCellId || focusedCellId === `quotient-${activeStepIndex}`)) {
+      // 1. Άμεση εστίαση στο επόμενο animation frame
+      const frame = requestAnimationFrame(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.select();
+        }
+      });
+
+      // 2. Εστίαση ασφαλείας μετά το unmount τυχόν modal (π.χ. Δική μου Άσκηση)
+      const timer = setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.select();
+        }
+      }, 60);
+
+      return () => {
+        cancelAnimationFrame(frame);
+        clearTimeout(timer);
+      };
     }
-  }, [activeStepIndex, activeSubStep, focusedCellId]);
+  }, [problem.id, activeStepIndex, activeSubStep, focusedCellId]);
 
   const isShiftPending = problem.shiftInfo.wasShifted && (!shiftUserState || !shiftUserState.isShiftValidated);
 
@@ -156,6 +174,7 @@ export const DivisorQuotientCorner: React.FC<DivisorQuotientCornerProps> = ({
                       inputMode="numeric"
                       pattern="[0-9]*"
                       maxLength={1}
+                      autoFocus={isActive && !isShiftPending}
                       value={stepState?.quotientDigit || ''}
                       onChange={(e) => onQuotientChange(e.target.value)}
                       onKeyDown={(e) => {

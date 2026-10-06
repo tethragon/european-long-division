@@ -163,6 +163,49 @@ function shiftDecimalRight(val: string, places: number): string {
 }
 
 /**
+ * Ελέγχει με απόλυτη μαθηματική ακρίβεια αν η διαίρεση είναι περατή (τερματίζει σε πεπερασμένα
+ * δεκαδικά ψηφία) ή μη περατή (περιοδική / συνεχίζεται επ' άπειρον).
+ * Βασίζεται στο θεώρημα ότι ένα ανάγωγο κλάσμα A / B παράγει πεπερασμένο δεκαδικό αν και μόνο αν
+ * ο παρονομαστής B (μετά την απλοποίηση με το A) έχει ως πρώτους παράγοντες ΜΟΝΟ το 2 και το 5.
+ */
+export function isTerminatingDivision(dividendStr: string, divisorStr: string): boolean {
+  try {
+    const divParts = dividendStr.replace(/\./g, ',').split(',');
+    const disParts = divisorStr.replace(/\./g, ',').split(',');
+
+    const divDec = divParts[1] ? divParts[1].length : 0;
+    const disDec = disParts[1] ? disParts[1].length : 0;
+    const maxDec = Math.max(divDec, disDec);
+
+    const divInt = Math.round(Number(dividendStr.replace(',', '.')) * Math.pow(10, maxDec));
+    const disInt = Math.round(Number(divisorStr.replace(',', '.')) * Math.pow(10, maxDec));
+
+    if (disInt === 0) return false;
+    if (divInt === 0) return true;
+
+    // Εύρεση ΜΚΔ (Μέγιστος Κοινός Διαιρέτης)
+    let a = Math.abs(divInt);
+    let b = Math.abs(disInt);
+    while (b) {
+      const t = b;
+      b = a % b;
+      a = t;
+    }
+    const gcd = a;
+
+    let reducedDivisor = Math.abs(disInt) / gcd;
+
+    // Αφαίρεση όλων των παραγόντων 2 και 5
+    while (reducedDivisor % 2 === 0) reducedDivisor /= 2;
+    while (reducedDivisor % 5 === 0) reducedDivisor /= 5;
+
+    return reducedDivisor === 1;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Κύρια συνάρτηση επίλυσης και δημιουργίας βημάτων κάθετης διαίρεσης
  */
 export function solveDivision(
@@ -217,6 +260,31 @@ export function solveDivision(
     throw new Error('Μη έγκυρος ακέραιος διαιρέτης μετά τη μετατροπή.');
   }
 
+  // Αποθηκεύουμε τον βασικό διαιρετέο πριν την τυχόν προσθήκη μηδενικών
+  const baseDividendStr = effectiveDividendStr;
+
+  // Αν ο διαιρετέος έχει δεκαδικά και όλα τα ψηφία του δεν επαρκούν για να σχηματίσουν
+  // αρχικό τμήμα >= effectiveDivisor (π.χ. στο 0,024 : 40, όπου 24 < 40),
+  // προσθέτουμε όσα μηδενικά χρειάζονται στο τέλος του διαιρετέου (π.χ. 0,024 -> 0,0240)
+  // ώστε να προστεθεί 0 στον διαιρετέο και η αγκύλη να αγκαλιάζει σωστά το 2, 4 και το 0!
+  let testVal = parseInt(effectiveDividendStr.replace(',', ''), 10);
+  if (testVal > 0 && testVal < effectiveDivisor) {
+    if (!effectiveDividendStr.includes(',')) {
+      effectiveDividendStr += ',';
+    }
+    while (testVal < effectiveDivisor) {
+      effectiveDividendStr += '0';
+      testVal *= 10;
+    }
+    shiftInfo.shiftedDividend = effectiveDividendStr;
+  }
+
+  // Έλεγχος αν η διαίρεση είναι περατή (τερματίζει σε πεπερασμένα δεκαδικά)
+  const isTerminating = isTerminatingDivision(cleanDividend, cleanDivisor);
+  // Αν είναι περατή (π.χ. 0,012 : 5 = 0,0024), επιτρέπουμε να ολοκληρωθεί έως και 6 δεκαδικά
+  // Αν είναι περιοδική (π.χ. 1 : 3 = 0,333...), σταματάμε στα maxDecimalPlaces (π.χ. 3 δεκαδικά)
+  const allowedMaxDecimals = isTerminating ? 6 : maxDecimalPlaces;
+
   // Ειδική περίπτωση: Διαιρετέος 0 (π.χ. 0 : 5 = 0)
   if (divValidation.numValue === 0) {
     const singleStep: DivisionStep = {
@@ -236,6 +304,7 @@ export function solveDivision(
       isBroughtDownZero: false,
       nextChunk: null,
       columnEndIndex: 0,
+      hasSubtraction: true,
       hints: {
         quotientPrompt: `Πόσες φορές χωράει το ${effectiveDivisor} στο 0;`,
         productPrompt: `0 × ${effectiveDivisor} = 0`,
@@ -249,6 +318,7 @@ export function solveDivision(
       id: `div_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
       originalDividendStr: cleanDividend,
       originalDivisorStr: cleanDivisor,
+      baseDividendStr: cleanDividend,
       effectiveDividendStr: '0',
       effectiveDivisor,
       dividendDecimalIndex: null,
@@ -296,65 +366,90 @@ export function solveDivision(
   // π.χ. 3,5 : 7 -> Το 7 στο 3 χωράει 0 φορές, βάζουμε 0, στο πηλίκο
   const intVal = parseInt(integerPartStr, 10);
   if (intVal < effectiveDivisor) {
-    // Παίρνουμε το ακέραιο μέρος ως πρώτο τμήμα
+    // 1ο Βήμα: Το ακέραιο μέρος είναι μικρότερο από τον διαιρέτη (π.χ. στο 0,012 ή 3,5)
+    // Βάζουμε 0, στο πηλίκο. Δεν κατεβαίνει τίποτα σε από κάτω γραμμή (hasSubtraction = false).
     currentChunk = intVal;
     chunkStartIndex = 0;
     chunkEndIndex = integerPartStr.length - 1;
     digitPointer = integerPartStr.length;
-
-    const quotientDigit = 0;
-    const product = 0;
-    const remainder = currentChunk;
-    
-    // Αμέσως μπαίνει υποδιαστολή γιατί εξαντλήθηκε το ακέραιο μέρος
     decimalPlaced = true;
     quotientStr += '0,';
 
-    // Επόμενο ψηφίο που κατεβαίνει
-    let broughtDownDigit: string | null = null;
-    let broughtDownFromIndex: number | null = null;
-    let isBroughtDownZero = false;
-
-    if (digitPointer < allDigits.length) {
-      const entry = allDigits[digitPointer];
-      broughtDownDigit = entry.digit;
-      broughtDownFromIndex = entry.originalIndex;
-      digitPointer++;
-    } else {
-      broughtDownDigit = '0';
-      isBroughtDownZero = true;
-    }
-
-    const nextChunk = remainder * 10 + parseInt(broughtDownDigit, 10);
-
     steps.push({
-      stepIndex: 0,
+      stepIndex,
       currentChunk,
       chunkDigitsStr: currentChunk.toString(),
-      chunkStartIndex,
+      chunkStartIndex: 0,
       chunkEndIndex,
       quotientDigit: 0,
       isDecimalPointPlacedHere: true,
-      product,
+      product: 0,
       productDigitsStr: '0',
-      remainder,
-      remainderDigitsStr: remainder.toString(),
-      broughtDownDigit,
-      broughtDownFromIndex,
-      isBroughtDownZero,
-      nextChunk,
+      remainder: currentChunk,
+      remainderDigitsStr: currentChunk.toString(),
+      broughtDownDigit: null,
+      broughtDownFromIndex: null,
+      isBroughtDownZero: false,
+      nextChunk: null,
       columnEndIndex: chunkEndIndex,
+      hasSubtraction: false,
       hints: {
-        quotientPrompt: `Το ακέραιο μέρος (${currentChunk}) είναι μικρότερο από τον διαιρέτη (${effectiveDivisor}). Χωράει 0 φορές!`,
+        quotientPrompt: `Το ακέραιο μέρος (${currentChunk}) δεν χωράει το ${effectiveDivisor} (0 φορές). Βάζουμε 0, στο πηλίκο!`,
         productPrompt: `0 × ${effectiveDivisor} = 0`,
         remainderPrompt: `${currentChunk} - 0 = ${currentChunk}`,
-        bringDownPrompt: `Βάζουμε υποδιαστολή (,) στο πηλίκο και κατεβάζουμε το επόμενο ψηφίο (${broughtDownDigit}).`,
-        detailedExplanation: `Επειδή το ${currentChunk} είναι μικρότερο από το ${effectiveDivisor}, γράφουμε 0 στο πηλίκο, τοποθετούμε κόμμα (υποδιαστολή) και συνεχίζουμε κατεβάζοντας το επόμενο ψηφίο.`
-      }
+        bringDownPrompt: `Η αγκύλη στον διαιρετέο μεγαλώνει για να πιάσει και το επόμενο ψηφίο!`,
+        detailedExplanation: `Επειδή το ακέραιο μέρος (${currentChunk}) είναι μικρότερο από το ${effectiveDivisor}, γράφουμε 0, στο πηλίκο. Η αγκύλη μεγαλώνει για να συμπεριλάβει και το επόμενο ψηφίο.`,
+      },
     });
-
-    currentChunk = nextChunk;
     stepIndex++;
+
+    // Αν υπάρχουν διαδοχικά δεκαδικά ψηφία που δεν επαρκούν ώστε το τμήμα να γίνει >= effectiveDivisor
+    // π.χ. στο 0,012 : 5 -> το επόμενο '0' δίνει 0 < 5, το επόμενο '1' δίνει 1 < 5!
+    while (digitPointer < allDigits.length) {
+      const nextDigit = allDigits[digitPointer].digit;
+      const tentativeChunk = currentChunk * 10 + parseInt(nextDigit, 10);
+      if (tentativeChunk < effectiveDivisor) {
+        currentChunk = tentativeChunk;
+        chunkEndIndex = digitPointer;
+        digitPointer++;
+        quotientStr += '0';
+
+        steps.push({
+          stepIndex,
+          currentChunk,
+          chunkDigitsStr: currentChunk.toString(),
+          chunkStartIndex: 0,
+          chunkEndIndex,
+          quotientDigit: 0,
+          isDecimalPointPlacedHere: false,
+          product: 0,
+          productDigitsStr: '0',
+          remainder: currentChunk,
+          remainderDigitsStr: currentChunk.toString(),
+          broughtDownDigit: null,
+          broughtDownFromIndex: null,
+          isBroughtDownZero: false,
+          nextChunk: null,
+          columnEndIndex: chunkEndIndex,
+          hasSubtraction: false,
+          hints: {
+            quotientPrompt: `Το ${effectiveDivisor} στο ${currentChunk} δεν χωράει (0 φορές). Βάζουμε 0 στο πηλίκο!`,
+            productPrompt: `0 × ${effectiveDivisor} = 0`,
+            remainderPrompt: `${currentChunk} - 0 = ${currentChunk}`,
+            bringDownPrompt: `Η αγκύλη στον διαιρετέο μεγαλώνει για να πιάσει και το επόμενο ψηφίο!`,
+            detailedExplanation: `Επειδή το ${effectiveDivisor} δεν χωράει στο ${currentChunk}, γράφουμε 0 στο πηλίκο και μεγαλώνουμε την αγκύλη στον διαιρετέο.`,
+          },
+        });
+        stepIndex++;
+      } else {
+        // Βρέθηκε τμήμα που χωράει τον διαιρέτη (π.χ. το 12 στο 0,012 ή το 35 στο 3,5)!
+        currentChunk = tentativeChunk;
+        chunkStartIndex = 0;
+        chunkEndIndex = digitPointer;
+        digitPointer++;
+        break;
+      }
+    }
   } else {
     // Κανονική αρχή: παίρνουμε τόσα ψηφία όσα χρειάζονται ώστε chunk >= effectiveDivisor
     let initialChunkStr = '';
@@ -417,7 +512,7 @@ export function solveDivision(
       if (remainder === 0) {
         // Τέλεια διαίρεση! Ολοκληρώθηκε!
         finished = true;
-      } else if (currentDecimals < maxDecimalPlaces) {
+      } else if (currentDecimals < allowedMaxDecimals) {
         // Συνέχιση με δεκαδικά: κατεβάζουμε 0
         if (!decimalPlaced) {
           decimalPlaced = true;
@@ -440,6 +535,9 @@ export function solveDivision(
     const chunkLen = currentChunk.toString().length;
     const stepChunkStart = colEnd - chunkLen + 1;
 
+    const baseDigitsCount = baseDividendStr.replace(/,/g, '').length;
+    const isZeroAppendedToDividend = colEnd >= baseDigitsCount && quotientDigit > 0;
+
     const step: DivisionStep = {
       stepIndex,
       currentChunk,
@@ -457,16 +555,29 @@ export function solveDivision(
       isBroughtDownZero,
       nextChunk,
       columnEndIndex: colEnd,
+      hasSubtraction: quotientDigit > 0,
       hints: {
-        quotientPrompt: `Πόσες φορές χωράει το ${effectiveDivisor} στο ${currentChunk};`,
+        quotientPrompt: quotientDigit === 0
+          ? `Το ${effectiveDivisor} στο ${currentChunk} δεν χωράει (0 φορές). Βάζουμε 0 στο πηλίκο!`
+          : isZeroAppendedToDividend
+            ? `Προστέθηκε 0 στον διαιρετέο! Η αγκύλη αγκαλιάζει το ${currentChunk}. Πόσες φορές χωράει το ${effectiveDivisor} στο ${currentChunk};`
+            : `Πόσες φορές χωράει το ${effectiveDivisor} στο ${currentChunk};`,
         productPrompt: `Πολλαπλασίασε: ${quotientDigit} × ${effectiveDivisor} = ${product}`,
         remainderPrompt: `Αφαίρεσε: ${currentChunk} - ${product} = ${remainder}`,
         bringDownPrompt: broughtDownDigit !== null 
           ? (isBroughtDownZero 
-              ? `Το υπόλοιπο είναι ${remainder}. Προσθέτουμε 0 δεξιά για να συνεχίσουμε τη διαίρεση με δεκαδικά.`
-              : `Κατεβάζουμε το ψηφίο ${broughtDownDigit} δίπλα στο υπόλοιπο ${remainder}. Νέος αριθμός: ${nextChunk}`)
-          : `Το υπόλοιπο είναι ${remainder}. Η διαίρεση ολοκληρώθηκε!`,
-        detailedExplanation: `Το ${effectiveDivisor} χωράει ${quotientDigit} φορές στο ${currentChunk} (${quotientDigit} × ${effectiveDivisor} = ${product}). Αφαιρούμε και βρίσκουμε υπόλοιπο ${remainder}.`
+              ? (quotientDigit === 0
+                  ? `Βάζουμε 0 στο πηλίκο. Προσθέτουμε 0 δεξιά για να συνεχιστεί η διαίρεση.`
+                  : `Το υπόλοιπο είναι ${remainder}. Προσθέτουμε 0 δεξιά για να συνεχίσουμε τη διαίρεση με δεκαδικά.`)
+              : (quotientDigit === 0
+                  ? `Βάζουμε 0 στο πηλίκο. Κατεβάζουμε το επόμενο ψηφίο (${broughtDownDigit}) δίπλα στο ${remainder}.`
+                  : `Κατεβάζουμε το ψηφίο ${broughtDownDigit} δίπλα στο υπόλοιπο ${remainder}. Νέος αριθμός: ${nextChunk}`))
+          : `Η διαίρεση ολοκληρώθηκε!`,
+        detailedExplanation: quotientDigit === 0
+          ? `Επειδή το ${effectiveDivisor} δεν χωράει στο ${currentChunk}, γράφουμε 0 στο πηλίκο, παρακάμπτουμε την αφαίρεση με το 0 και κατεβάζουμε αμέσως το επόμενο ψηφίο.`
+          : isZeroAppendedToDividend
+            ? `Επειδή εξαντλήθηκαν τα ψηφία του διαιρετέου, προσθέτουμε 0 στο τέλος του διαιρετέου. Η αγκύλη αγκαλιάζει το ${currentChunk}. Το ${effectiveDivisor} χωράει ${quotientDigit} φορές στο ${currentChunk} (${quotientDigit} × ${effectiveDivisor} = ${product}).`
+            : `Το ${effectiveDivisor} χωράει ${quotientDigit} φορές στο ${currentChunk} (${quotientDigit} × ${effectiveDivisor} = ${product}). Αφαιρούμε και βρίσκουμε υπόλοιπο ${remainder}.`
       }
     };
 
@@ -491,12 +602,12 @@ export function solveDivision(
   const finalStep = steps[steps.length - 1];
   const finalRemainder = finalStep ? finalStep.remainder : 0;
   const isExact = finalRemainder === 0;
-  const totalDecimals = quotientStr.includes(',') ? (quotientStr.split(',')[1] || '').length : 0;
 
   return {
     id: `div_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
     originalDividendStr: cleanDividend,
     originalDivisorStr: cleanDivisor,
+    baseDividendStr,
     effectiveDividendStr,
     effectiveDivisor,
     dividendDecimalIndex: decimalPointCharIndex,
@@ -505,7 +616,8 @@ export function solveDivision(
     quotientStr,
     finalRemainder,
     isExact,
-    maxDecimalReached: !isExact && totalDecimals >= maxDecimalPlaces,
+    maxDecimalReached: !isExact && !isTerminating,
+    isTerminating,
   };
 }
 

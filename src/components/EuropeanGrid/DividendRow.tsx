@@ -12,6 +12,7 @@ interface DividendRowProps {
   activeChunkEnd?: number;
   highlightActive?: boolean;
   totalCols: number;
+  baseDigitsCount?: number;
 }
 
 interface DigitItem {
@@ -26,6 +27,7 @@ export const DividendRow: React.FC<DividendRowProps> = ({
   activeChunkEnd = 0,
   highlightActive = true,
   totalCols,
+  baseDigitsCount,
 }) => {
   // Ανάλυση χαρακτήρων και αντιστοίχιση ψηφίων σε στήλες (εξαιρώντας το κόμμα από την αρίθμηση στηλών)
   const digits: DigitItem[] = [];
@@ -75,6 +77,8 @@ export const DividendRow: React.FC<DividendRowProps> = ({
           col >= activeChunkStart &&
           col <= activeChunkEnd;
 
+        const isAppendedZero = baseDigitsCount !== undefined && col >= baseDigitsCount;
+
         return (
           <div key={`div-digit-${col}`} className="relative flex flex-col items-center shrink-0">
             {/* Οπτικό ενιαίο τόξο / καπελάκι (arc) για το τμήμα που χωρίζει ο μαθητής */}
@@ -94,11 +98,16 @@ export const DividendRow: React.FC<DividendRowProps> = ({
 
             {/* Κελί ψηφίου */}
             <div
+              title={isAppendedZero ? 'Μηδενικό που προστέθηκε στον διαιρετέο' : undefined}
               className={`w-8 h-8 md:w-9 md:h-9 flex items-center justify-center font-bold text-lg md:text-xl rounded-lg transition-colors duration-200 ${
                 digitItem.char === '?'
                   ? 'bg-slate-50 text-slate-400 border border-dashed border-slate-300'
                   : isPartOfActiveChunk
-                  ? 'bg-indigo-50 text-indigo-950 border border-indigo-300 ring-2 ring-indigo-200/60'
+                  ? isAppendedZero
+                    ? 'bg-emerald-50 text-emerald-950 border-2 border-emerald-500 ring-2 ring-emerald-300/60 shadow-xs'
+                    : 'bg-indigo-50 text-indigo-950 border border-indigo-300 ring-2 ring-indigo-200/60'
+                  : isAppendedZero
+                  ? 'bg-emerald-50/70 text-emerald-900 border border-emerald-300 shadow-2xs'
                   : 'bg-white text-slate-800 border border-slate-300 shadow-2xs'
               }`}
             >

@@ -119,6 +119,20 @@ export const SubtractionRow: React.FC<SubtractionRowProps> = ({
     }
   };
 
+  // Αν το βήμα δεν περιλαμβάνει αφαίρεση (όπως τα αρχικά μηδενικά στο 0,012 : 5),
+  // δεν κατεβαίνουμε σε από κάτω γραμμή (παραμένει μόνο η αγκύλη στον αρχικό διαιρετέο)
+  if (!step.hasSubtraction) {
+    return null;
+  }
+
+  const isZeroQuotient = step.quotientDigit === 0;
+
+  // Αν το ψηφίο πηλίκου είναι 0 και δεν υπάρχει άλλο ψηφίο για κατέβασμα (τελικό βήμα),
+  // δεν σχεδιάζουμε περιττή κενή γραμμή
+  if (isZeroQuotient && step.broughtDownDigit === null) {
+    return null;
+  }
+
   // Στήλες από -1 (πρόσημο πλην) έως totalCols - 1
   const allColIndices: number[] = [];
   for (let c = -1; c < totalCols; c++) {
@@ -127,99 +141,103 @@ export const SubtractionRow: React.FC<SubtractionRowProps> = ({
 
   return (
     <div className="flex flex-col my-1 font-mono-numbers">
-      {/* 1. ΣΕΙΡΑ ΓΙΝΟΜΕΝΟΥ (ΑΦΑΙΡΕΤΕΟΣ) */}
-      <div className="flex items-center gap-1 h-10">
-        {allColIndices.map((col) => {
-          // Πρόσημο πλην (−) στην κατάλληλη στήλη (ακριβώς αριστερά του γινομένου)
-          if (col === minusCol) {
+      {/* 1. ΣΕΙΡΑ ΓΙΝΟΜΕΝΟΥ (ΑΦΑΙΡΕΤΕΟΣ) - Παρακάμπτεται όταν το ψηφίο πηλίκου είναι 0 */}
+      {!isZeroQuotient && (
+        <div className="flex items-center gap-1 h-10">
+          {allColIndices.map((col) => {
+            // Πρόσημο πλην (−) στην κατάλληλη στήλη (ακριβώς αριστερά του γινομένου)
+            if (col === minusCol) {
+              return (
+                <div
+                  key={`prod-minus-${col}`}
+                  className="w-8 h-8 md:w-9 md:h-9 shrink-0 flex items-center justify-center font-bold text-rose-600 text-lg md:text-xl select-none"
+                >
+                  −
+                </div>
+              );
+            }
+
+            // Ψηφία Γινομένου
+            if (col >= productStartCol && col <= colEnd) {
+              const digitIdx = col - productStartCol;
+              const isCellCompleted = stepState?.isProductValidated;
+              const enteredVal = stepState?.productDigits[digitIdx] || '';
+              const cellId = `product-${stepIndex}-${digitIdx}`;
+
+              return (
+                <div key={cellId} className="w-8 h-8 md:w-9 md:h-9 shrink-0 relative">
+                  {isCellCompleted ? (
+                    <div className="w-full h-full flex items-center justify-center font-bold text-lg md:text-xl rounded-lg bg-slate-100 text-slate-800 border border-slate-300">
+                      {step.productDigitsStr[digitIdx]}
+                    </div>
+                  ) : isProductActive ? (
+                    <input
+                      ref={(el) => {
+                        productInputRefs.current[digitIdx] = el;
+                      }}
+                      id={cellId}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={1}
+                      value={enteredVal}
+                      onChange={(e) => {
+                        const clean = e.target.value.replace(/\D/g, '').slice(-1);
+                        onProductDigitChange(digitIdx, clean);
+                        if (clean && digitIdx < productLen - 1) {
+                          productInputRefs.current[digitIdx + 1]?.focus();
+                        }
+                      }}
+                      onKeyDown={(e) => handleProductKeyDown(e, digitIdx)}
+                      onFocus={() => setFocusedCellId(cellId)}
+                      placeholder="·"
+                      className="w-full h-full text-center font-bold text-lg md:text-xl rounded-lg bg-white text-indigo-950 border-2 border-indigo-600 focus:outline-hidden focus:ring-3 focus:ring-indigo-300 shadow-sm scroll-m-24"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-300 rounded-lg bg-slate-50/50 border border-dashed border-slate-200">
+                      ·
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            // Κενός χώρος στις υπόλοιπες στήλες
+            return <div key={`prod-space-${col}`} className="w-8 h-8 md:w-9 md:h-9 shrink-0" />;
+          })}
+
+          {/* Κουμπί ελέγχου γινομένου */}
+          {isProductActive && (
+            <button
+              type="button"
+              onClick={onValidateProduct}
+              className="ml-2 px-2.5 py-1 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors shadow-xs flex items-center gap-1 font-sans shrink-0 cursor-pointer"
+              title="Έλεγχος γινομένου (Enter)"
+            >
+              Έλεγχος <Check className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* 2. ΟΡΙΖΟΝΤΙΑ ΓΡΑΜΜΗ ΑΦΑΙΡΕΣΗΣ - Παρακάμπτεται όταν το ψηφίο πηλίκου είναι 0 */}
+      {!isZeroQuotient && (
+        <div className="flex items-center gap-1 my-0.5">
+          {allColIndices.map((col) => {
+            const isLineCol = col >= lineStartCol && col <= colEnd;
             return (
               <div
-                key={`prod-minus-${col}`}
-                className="w-8 h-8 md:w-9 md:h-9 shrink-0 flex items-center justify-center font-bold text-rose-600 text-lg md:text-xl select-none"
+                key={`line-col-${col}`}
+                className="w-8 md:w-9 h-2 shrink-0 relative flex items-center justify-center"
               >
-                −
-              </div>
-            );
-          }
-
-          // Ψηφία Γινομένου
-          if (col >= productStartCol && col <= colEnd) {
-            const digitIdx = col - productStartCol;
-            const isCellCompleted = stepState?.isProductValidated;
-            const enteredVal = stepState?.productDigits[digitIdx] || '';
-            const cellId = `product-${stepIndex}-${digitIdx}`;
-
-            return (
-              <div key={cellId} className="w-8 h-8 md:w-9 md:h-9 shrink-0 relative">
-                {isCellCompleted ? (
-                  <div className="w-full h-full flex items-center justify-center font-bold text-lg md:text-xl rounded-lg bg-slate-100 text-slate-800 border border-slate-300">
-                    {step.productDigitsStr[digitIdx]}
-                  </div>
-                ) : isProductActive ? (
-                  <input
-                    ref={(el) => {
-                      productInputRefs.current[digitIdx] = el;
-                    }}
-                    id={cellId}
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={1}
-                    value={enteredVal}
-                    onChange={(e) => {
-                      const clean = e.target.value.replace(/\D/g, '').slice(-1);
-                      onProductDigitChange(digitIdx, clean);
-                      if (clean && digitIdx < productLen - 1) {
-                        productInputRefs.current[digitIdx + 1]?.focus();
-                      }
-                    }}
-                    onKeyDown={(e) => handleProductKeyDown(e, digitIdx)}
-                    onFocus={() => setFocusedCellId(cellId)}
-                    placeholder="·"
-                    className="w-full h-full text-center font-bold text-lg md:text-xl rounded-lg bg-white text-indigo-950 border-2 border-indigo-600 focus:outline-hidden focus:ring-3 focus:ring-indigo-300 shadow-sm scroll-m-24"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-slate-300 rounded-lg bg-slate-50/50 border border-dashed border-slate-200">
-                    ·
-                  </div>
+                {isLineCol && (
+                  <div className="absolute inset-x-[-2px] h-0.5 bg-slate-700 rounded-full" />
                 )}
               </div>
             );
-          }
-
-          // Κενός χώρος στις υπόλοιπες στήλες
-          return <div key={`prod-space-${col}`} className="w-8 h-8 md:w-9 md:h-9 shrink-0" />;
-        })}
-
-        {/* Κουμπί ελέγχου γινομένου */}
-        {isProductActive && (
-          <button
-            type="button"
-            onClick={onValidateProduct}
-            className="ml-2 px-2.5 py-1 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors shadow-xs flex items-center gap-1 font-sans shrink-0 cursor-pointer"
-            title="Έλεγχος γινομένου (Enter)"
-          >
-            Έλεγχος <Check className="w-3.5 h-3.5" />
-          </button>
-        )}
-      </div>
-
-      {/* 2. ΟΡΙΖΟΝΤΙΑ ΓΡΑΜΜΗ ΑΦΑΙΡΕΣΗΣ */}
-      <div className="flex items-center gap-1 my-0.5">
-        {allColIndices.map((col) => {
-          const isLineCol = col >= lineStartCol && col <= colEnd;
-          return (
-            <div
-              key={`line-col-${col}`}
-              className="w-8 md:w-9 h-2 shrink-0 relative flex items-center justify-center"
-            >
-              {isLineCol && (
-                <div className="absolute inset-x-[-2px] h-0.5 bg-slate-700 rounded-full" />
-              )}
-            </div>
-          );
-        })}
-      </div>
+          })}
+        </div>
+      )}
 
       {/* 3. ΣΕΙΡΑ ΥΠΟΛΟΙΠΟΥ & ΚΑΤΕΒΑΣΜΑ ΨΗΦΙΟΥ */}
       <div className="flex items-center gap-1 h-10">
