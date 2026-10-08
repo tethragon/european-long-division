@@ -19,6 +19,8 @@ interface SubtractionRowProps {
   activeStepIndex: number;
   activeSubStep: SubStep;
   totalCols: number;
+  zeroSteps?: DivisionStep[];
+  allStepStates?: UserInputStepState[];
   onProductDigitChange: (digitIdx: number, val: string) => void;
   onRemainderDigitChange: (digitIdx: number, val: string) => void;
   onValidateProduct: () => void;
@@ -35,6 +37,8 @@ export const SubtractionRow: React.FC<SubtractionRowProps> = ({
   activeStepIndex,
   activeSubStep,
   totalCols,
+  zeroSteps = [],
+  allStepStates = [],
   onProductDigitChange,
   onRemainderDigitChange,
   onValidateProduct,
@@ -46,7 +50,11 @@ export const SubtractionRow: React.FC<SubtractionRowProps> = ({
   const isCurrentStep = stepIndex === activeStepIndex;
   const isProductActive = isCurrentStep && activeSubStep === 'product';
   const isRemainderActive = isCurrentStep && activeSubStep === 'remainder';
-  const isBringDownActive = isCurrentStep && activeSubStep === 'bring_down';
+  const isStepBringDownActive = isCurrentStep && activeSubStep === 'bring_down';
+  const activeZeroStep = zeroSteps.find(
+    (zs) => zs.stepIndex === activeStepIndex && activeSubStep === 'bring_down'
+  );
+  const isBringDownActive = isStepBringDownActive || !!activeZeroStep;
 
   const productInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const remainderInputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -287,7 +295,7 @@ export const SubtractionRow: React.FC<SubtractionRowProps> = ({
             );
           }
 
-          // Ψηφίο που κατεβαίνει (ακριβώς στη στήλη bringDownCol)
+          // Ψηφίο που κατεβαίνει από το κύριο βήμα (ακριβώς στη στήλη bringDownCol)
           if (col === bringDownCol && step.broughtDownDigit !== null) {
             return (
               <div
@@ -299,12 +307,50 @@ export const SubtractionRow: React.FC<SubtractionRowProps> = ({
                     digit={step.broughtDownDigit}
                     isVirtualZero={step.isBroughtDownZero}
                   />
-                ) : isBringDownActive ? (
+                ) : isStepBringDownActive ? (
                   <button
+                    ref={bringDownBtnRef}
                     type="button"
                     onClick={onTriggerBringDown}
                     className="w-full h-full flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg shadow-sm animate-pulse transition-all cursor-pointer"
                     title={`Κατέβασε το ψηφίο ${step.isBroughtDownZero ? '0' : step.broughtDownDigit}`}
+                  >
+                    <ArrowDown className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-slate-300 rounded-lg bg-slate-50/50 border border-dashed border-slate-200">
+                    ·
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // Ψηφίο που κατεβαίνει από ενδιάμεσο μηδενικό βήμα (zeroSteps)
+          const matchedZeroStep = zeroSteps.find(
+            (zs) => zs.columnEndIndex + 1 === col && zs.broughtDownDigit !== null
+          );
+          if (matchedZeroStep && matchedZeroStep.broughtDownDigit !== null) {
+            const isZBroughtDown = allStepStates[matchedZeroStep.stepIndex]?.isBroughtDown;
+            const isZActive = activeStepIndex === matchedZeroStep.stepIndex && activeSubStep === 'bring_down';
+
+            return (
+              <div
+                key={`bring-down-zero-${matchedZeroStep.stepIndex}-${col}`}
+                className="w-8 h-8 md:w-9 md:h-9 shrink-0 flex items-center justify-center"
+              >
+                {isZBroughtDown ? (
+                  <BringDownAnimation
+                    digit={matchedZeroStep.broughtDownDigit}
+                    isVirtualZero={matchedZeroStep.isBroughtDownZero}
+                  />
+                ) : isZActive ? (
+                  <button
+                    ref={bringDownBtnRef}
+                    type="button"
+                    onClick={onTriggerBringDown}
+                    className="w-full h-full flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg shadow-sm animate-pulse transition-all cursor-pointer"
+                    title={`Κατέβασε το ψηφίο ${matchedZeroStep.isBroughtDownZero ? '0' : matchedZeroStep.broughtDownDigit}`}
                   >
                     <ArrowDown className="w-4 h-4" />
                   </button>
@@ -333,8 +379,8 @@ export const SubtractionRow: React.FC<SubtractionRowProps> = ({
           </button>
         )}
 
-        {/* Επεξηγηματικό κουμπί για κατέβασμα ψηφίου όταν είναι ενεργό */}
-        {isBringDownActive && step.broughtDownDigit !== null && (
+        {/* Επεξηγηματικό κουμπί για κατέβασμα ψηφίου όταν είναι ενεργό από το κύριο βήμα */}
+        {isStepBringDownActive && step.broughtDownDigit !== null && (
           <button
             ref={bringDownBtnRef}
             type="button"
@@ -349,6 +395,25 @@ export const SubtractionRow: React.FC<SubtractionRowProps> = ({
           >
             <ArrowDown className="w-3.5 h-3.5" />
             Κατέβασε το {step.isBroughtDownZero ? '0' : step.broughtDownDigit}
+          </button>
+        )}
+
+        {/* Επεξηγηματικό κουμπί για κατέβασμα ψηφίου όταν είναι ενεργό από ενδιάμεσο μηδενικό */}
+        {activeZeroStep && activeZeroStep.broughtDownDigit !== null && (
+          <button
+            ref={bringDownBtnRef}
+            type="button"
+            onClick={onTriggerBringDown}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                onTriggerBringDown();
+              }
+            }}
+            className="ml-2 px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-400 focus:outline-hidden rounded-lg shadow-sm flex items-center gap-1.5 animate-pulse font-sans shrink-0 cursor-pointer"
+          >
+            <ArrowDown className="w-3.5 h-3.5" />
+            Κατέβασε το {activeZeroStep.isBroughtDownZero ? '0' : activeZeroStep.broughtDownDigit}
           </button>
         )}
       </div>

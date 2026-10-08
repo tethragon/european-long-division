@@ -4,7 +4,7 @@
  * Περιλαμβάνει διαδραστικό βοηθό μετατροπής δεκαδικού διαιρέτη και εμφανή ένδειξη της αρχικής διαίρεσης.
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { DivisionProblem, UserInputStepState, SubStep, ShiftUserState } from '../../types/division';
 import { DividendRow } from './DividendRow';
 import { DivisorQuotientCorner } from './DivisorQuotientCorner';
@@ -120,43 +120,79 @@ export const DivisionBoard: React.FC<DivisionBoardProps> = ({
           </div>
 
           {/* 1. Γραμμή Διαιρετέου (στην ίδια ακριβώς οριζόντια ευθεία με τον Διαιρέτη) */}
-          <div className="flex items-center">
-            <DividendRow
-              dividendStr={currentDividendStr}
-              activeChunkStart={currentStep?.chunkStartIndex}
-              activeChunkEnd={currentStep?.chunkEndIndex}
-              highlightActive={!isFinished && !isShiftPending}
-              totalCols={totalCols}
-              baseDigitsCount={baseDigitsCount}
-            />
-          </div>
+          {(() => {
+            // Η αγκύλη στον διαιρετέο μετακινείται δυναμικά στα αντίστοιχα ενεργά ψηφία του τρέχοντος βήματος
+            const bracketStartIndex = currentStep ? currentStep.chunkStartIndex : 0;
+            const bracketEndIndex = currentStep ? currentStep.chunkEndIndex : 0;
+
+            return (
+              <div className="flex items-center">
+                <DividendRow
+                  dividendStr={currentDividendStr}
+                  activeChunkStart={bracketStartIndex}
+                  activeChunkEnd={bracketEndIndex}
+                  highlightActive={!isShiftPending && !isFinished}
+                  totalCols={totalCols}
+                  baseDigitsCount={baseDigitsCount}
+                />
+              </div>
+            );
+          })()}
 
           {/* 2. Διαδοχικές Γραμμές Αφαίρεσης για κάθε βήμα */}
           {!isShiftPending && (
             <div className="flex flex-col mt-2">
-              {problem.steps.map((step, idx) => {
-                // Εμφανίζουμε τα βήματα μέχρι το τρέχον ενεργό
-                if (idx > activeStepIndex) return null;
+              {(() => {
+                // Ομαδοποίηση βημάτων αφαίρεσης με τα τυχόν ενδιάμεσα μηδενικά βήματα (intermediate zero steps)
+                // που ακολουθούν και παρακάμπτουν τη δική τους γραμμή αφαίρεσης:
+                const subtractionGroups: {
+                  step: (typeof problem.steps)[0];
+                  zeroSteps: (typeof problem.steps)[0][];
+                }[] = [];
 
-                return (
-                  <SubtractionRow
-                    key={`subtraction-row-${idx}`}
-                    step={step}
-                    stepIndex={idx}
-                    stepState={stepStates[idx]}
-                    activeStepIndex={activeStepIndex}
-                    activeSubStep={activeSubStep}
-                    totalCols={totalCols}
-                    onProductDigitChange={onProductDigitChange}
-                    onRemainderDigitChange={onRemainderDigitChange}
-                    onValidateProduct={onValidateProduct}
-                    onValidateRemainder={onValidateRemainder}
-                    onTriggerBringDown={onTriggerBringDown}
-                    focusedCellId={focusedCellId}
-                    setFocusedCellId={setFocusedCellId}
-                  />
-                );
-              })}
+                let currentGroup: {
+                  step: (typeof problem.steps)[0];
+                  zeroSteps: (typeof problem.steps)[0][];
+                } | null = null;
+
+                for (const s of problem.steps) {
+                  if (s.isInitialZero) {
+                    continue;
+                  }
+                  if (s.hasSubtraction) {
+                    currentGroup = { step: s, zeroSteps: [] };
+                    subtractionGroups.push(currentGroup);
+                  } else if (currentGroup) {
+                    currentGroup.zeroSteps.push(s);
+                  }
+                }
+
+                return subtractionGroups.map((group) => {
+                  // Εμφανίζουμε τη γραμμή αφαίρεσης αν έχουμε φτάσει στο βήμα αυτό ή σε οποιοδήποτε επόμενο
+                  if (activeStepIndex < group.step.stepIndex) return null;
+
+                  return (
+                    <SubtractionRow
+                      key={`subtraction-row-${group.step.stepIndex}`}
+                      step={group.step}
+                      stepIndex={group.step.stepIndex}
+                      stepState={stepStates[group.step.stepIndex]}
+                      activeStepIndex={activeStepIndex}
+                      activeSubStep={activeSubStep}
+                      totalCols={totalCols}
+                      zeroSteps={group.zeroSteps}
+                      allStepStates={stepStates}
+                      onProductDigitChange={onProductDigitChange}
+                      onRemainderDigitChange={onRemainderDigitChange}
+                      onValidateProduct={onValidateProduct}
+                      onValidateRemainder={onValidateRemainder}
+                      onTriggerBringDown={onTriggerBringDown}
+                      focusedCellId={focusedCellId}
+                      setFocusedCellId={setFocusedCellId}
+                    />
+                  );
+                });
+              })()}
             </div>
           )}
         </div>

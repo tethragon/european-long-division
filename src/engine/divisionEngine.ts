@@ -392,6 +392,7 @@ export function solveDivision(
       isBroughtDownZero: false,
       nextChunk: null,
       columnEndIndex: chunkEndIndex,
+      isInitialZero: true,
       hasSubtraction: false,
       hints: {
         quotientPrompt: `Το ακέραιο μέρος (${currentChunk}) δεν χωράει το ${effectiveDivisor} (0 φορές). Βάζουμε 0, στο πηλίκο!`,
@@ -431,6 +432,7 @@ export function solveDivision(
           isBroughtDownZero: false,
           nextChunk: null,
           columnEndIndex: chunkEndIndex,
+          isInitialZero: true,
           hasSubtraction: false,
           hints: {
             quotientPrompt: `Το ${effectiveDivisor} στο ${currentChunk} δεν χωράει (0 φορές). Βάζουμε 0 στο πηλίκο!`,
@@ -555,6 +557,7 @@ export function solveDivision(
       isBroughtDownZero,
       nextChunk,
       columnEndIndex: colEnd,
+      isInitialZero: false,
       hasSubtraction: quotientDigit > 0,
       hints: {
         quotientPrompt: quotientDigit === 0

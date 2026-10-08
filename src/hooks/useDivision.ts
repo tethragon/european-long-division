@@ -459,7 +459,7 @@ export function useDivision(initialDividend?: string, initialDivisor?: string) {
 
     const expectedDigit = currentStep.quotientDigit.toString();
     if (currentInput === expectedDigit) {
-      if (!currentStep.hasSubtraction) {
+      if (currentStep.isInitialZero) {
         // Περίπτωση αρχικού μηδενικού (π.χ. στο 0,012 : 5 ή 3,5 : 7):
         // Δεν κατεβαίνουμε σε από κάτω γραμμή, η αγκύλη στον αρχικό διαιρετέο μεγαλώνει
         // για να συμπεριλάβει το επόμενο ψηφίο και μεταβαίνουμε αμέσως στο επόμενο ψηφίο πηλίκου!
@@ -552,7 +552,7 @@ export function useDivision(initialDividend?: string, initialDivisor?: string) {
             status: 'success',
             message: currentStep.isBroughtDownZero
               ? 'Σωστά! Βάζουμε 0 στο πηλίκο. Πάτα «Κατέβασε ψηφίο» (ή Enter) για να προστεθεί 0 και να συνεχιστεί η διαίρεση.'
-              : `Σωστά! Βάζουμε 0 στο πηλίκο. Πάτα «Κατέβασε ψηφίο» (ή Enter) για να κατέβει το ${currentStep.broughtDownDigit}!`,
+              : `Σωστά! Βάζουμε 0 στο πηλίκο. Πάτα «Κατέβασε ψηφίο» (ή Enter) για να κατέβει το ${currentStep.broughtDownDigit} δίπλα στο μερικό υπόλοιπο ${currentStep.currentChunk}!`,
             errorCount: 0,
           });
           setFocusedCellId(null);
